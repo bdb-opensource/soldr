@@ -22,7 +22,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public override string ToString()
         {
-            return string.Format("{{ Project: Name = {0}, Path = {1} }}", this.Name, this.Path);
+            return string.Format("{{ Project: Name = '{0}', Path = '{1}' }}", this.Name, this.Path);
         }
 
         public static Project FromCSProj(string filePath)
@@ -52,12 +52,12 @@ namespace BuildDependencyReader.ProjectFileParser
             var document = XDocument.Load(filePath);
 
             project.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
-            project.AssemblyReferences = GetAssemblyReferences(projectDirectory, document);
+            project.AssemblyReferences = GetAssemblyReferences(project.Path, projectDirectory, document);
             project.ProjectReferences = GetProjectReferences(projectDirectory, document);
             return project;
         }
 
-        private static IEnumerable<AssemblyReference> GetAssemblyReferences(string projectDirectory, XDocument csprojDocument)
+        private static IEnumerable<AssemblyReference> GetAssemblyReferences(string projectFileName, string projectDirectory, XDocument csprojDocument)
         {
             var assemblyReferences = new List<AssemblyReference>();
             foreach (var referenceNode in csprojDocument.Descendants(CSProjNamespace + "Reference"))
@@ -69,7 +69,10 @@ namespace BuildDependencyReader.ProjectFileParser
                 if (null != hintPathNode)
                 {
                     hintPath = ResolvePath(projectDirectory, hintPathNode.Value);
-                    ValidateFileExists(hintPath);
+                    if (false == File.Exists(hintPath))
+                    {
+                        throw new AssemblyReferenceHintPathDoesNotExist(assemblyName, hintPath, projectFileName);
+                    }
                 }
 
                 assemblyReferences.Add(new AssemblyReference(assemblyName, hintPath));
@@ -83,7 +86,16 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 string absoluteFilePath = ResolvePath(projectDirectory, projectReferenceNode.Attribute("Include").Value);
                 ValidateFileExists(absoluteFilePath);
-                yield return Project.FromCSProj(absoluteFilePath);
+                Project project;
+                try
+                {
+                    project = Project.FromCSProj(absoluteFilePath);
+                }
+                catch (Exception e)
+                {
+                    throw new ArgumentException("Error when trying to resolve referenced project: " + absoluteFilePath, e);
+                }
+                yield return project;
             }
         }
 
