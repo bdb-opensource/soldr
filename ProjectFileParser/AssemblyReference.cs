@@ -10,7 +10,7 @@ namespace BuildDependencyReader.ProjectFileParser
         public string HintPath { get; protected set; }
         public string Name { get; protected set; }
 
-        public AssemblyReference(string hintPath, string name)
+        public AssemblyReference(string name, string hintPath)
         {
             this.HintPath = hintPath;
             this.Name = name;
@@ -18,7 +18,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public override string ToString()
         {
-            return String.Format("{ AssemblyReference: Name = {0}, HintPath = {1} }", this.Name, this.HintPath);
+            return String.Format("{{ AssemblyReference: Name = {0}, HintPath = {1} }}", this.Name, this.HintPath);
         }
     }
 

@@ -9,6 +9,8 @@ namespace BuildDependencyReader.ProjectFileParser
 {
     public class Project
     {
+        protected static readonly XNamespace CSProjNamespace = "http://schemas.microsoft.com/developer/msbuild/2003";
+
         public string Name { get; protected set; }
         public string Path { get; protected set; }
         public IEnumerable<Project> ProjectReferences { get; protected set; }
@@ -20,7 +22,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public override string ToString()
         {
-            return string.Format("{ Project: Name = {0}, Path = {0} }", this.Name, this.Path);
+            return string.Format("{{ Project: Name = {0}, Path = {1} }}", this.Name, this.Path);
         }
 
         public static Project FromCSProj(string filePath)
@@ -49,7 +51,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
             var document = XDocument.Load(filePath);
 
-            project.Name = document.Descendants("AssemblyName").SingleOrDefault().Value;
+            project.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
             project.AssemblyReferences = GetAssemblyReferences(projectDirectory, document);
             project.ProjectReferences = GetProjectReferences(projectDirectory, document);
             return project;
@@ -58,13 +60,13 @@ namespace BuildDependencyReader.ProjectFileParser
         private static IEnumerable<AssemblyReference> GetAssemblyReferences(string projectDirectory, XDocument csprojDocument)
         {
             var assemblyReferences = new List<AssemblyReference>();
-            foreach (var referenceNode in csprojDocument.Descendants("Reference"))
+            foreach (var referenceNode in csprojDocument.Descendants(CSProjNamespace + "Reference"))
             {
                 var assemblyName = referenceNode.Attribute("Include").Value;
                 string hintPath = null;
-                var hintPathNode = referenceNode.Descendants("HintPath")
+                var hintPathNode = referenceNode.Descendants(CSProjNamespace + "HintPath")
                                                 .SingleOrDefault();
-                if (null != hintPath)
+                if (null != hintPathNode)
                 {
                     hintPath = ResolvePath(projectDirectory, hintPathNode.Value);
                     ValidateFileExists(hintPath);
@@ -77,7 +79,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         private static IEnumerable<Project> GetProjectReferences(string projectDirectory, XDocument csprojDocument)
         {
-            foreach (var projectReferenceNode in csprojDocument.Descendants("ProjectReference"))
+            foreach (var projectReferenceNode in csprojDocument.Descendants(CSProjNamespace + "ProjectReference"))
             {
                 string absoluteFilePath = ResolvePath(projectDirectory, projectReferenceNode.Attribute("Include").Value);
                 ValidateFileExists(absoluteFilePath);
