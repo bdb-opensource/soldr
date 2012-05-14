@@ -19,6 +19,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             var tempFileName = System.IO.Path.GetTempFileName();
             File.AppendAllText(tempFileName, dot);
+            Console.WriteLine("Wrote dot to: " + tempFileName);
+
             var processStartInfo = new ProcessStartInfo(@"D:\Program Files (x86)\Graphviz 2.28\bin\dot.exe", 
                 String.Format("-T{0} -o{1} {2}", 
                               imageType.ToString().ToLowerInvariant(), 
@@ -57,14 +59,17 @@ namespace BuildDependencyReader.PrintProjectDependencies
                                .Distinct()
                                .Select(x => Project.FromCSProj(x));
 
-            var graph = BuildDependencyResolver.BuildDependencyResolver.DependencyGraph(projects);
+            var graph = BuildDependencyResolver.BuildDependencyResolver.DependencyGraph(projects, true);
 
             var graphviz = new GraphvizAlgorithm<Project, SEdge<Project>>(graph);
+            graphviz.GraphFormat.RankSeparation = 2;
+            graphviz.GraphFormat.IsConcentrated = true;
+
             graphviz.FormatVertex += new FormatVertexEventHandler<Project>(graphviz_FormatVertex);
 
             var outFileName = graphviz.Generate(new DotEngine(), "graph.png");
 
-            foreach (var project in BuildDependencyResolver.BuildDependencyResolver.SortByDependencies(projects))
+            foreach (var project in BuildDependencyResolver.BuildDependencyResolver.BuildOrder(projects))
             {
                 Console.WriteLine(project);
             }
