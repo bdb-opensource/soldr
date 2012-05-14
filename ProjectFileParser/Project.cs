@@ -27,20 +27,45 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public static Project FromCSProj(string filePath)
         {
-            var fullPath = System.IO.Path.GetFullPath(filePath);
+            return GetProjectForPath(System.IO.Path.GetFullPath(filePath));
+        }
 
+        private static Project GetProjectForPath(string fullPath)
+        {
             Project cachedProject = null;
-            if (ResolvedProjectsCache.TryGetValue(filePath, out cachedProject))
+            if (ResolvedProjectsCache.TryGetValue(fullPath, out cachedProject))
             {
                 return cachedProject;
             }
 
-            var project = CreateProjectFromCSProj(filePath, fullPath);
+            var project = CreateProjectFromCSProj(fullPath);
             ResolvedProjectsCache.Add(fullPath, project);
             return project;
         }
 
-        private static Project CreateProjectFromCSProj(string filePath, string fullPath)
+        public IEnumerable<KeyValuePair<Project, Project>> DeepDependencies()
+        {
+            var projectsToTraverse = new Queue<KeyValuePair<Project,Project>>();
+            projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(this, this));
+
+            while (projectsToTraverse.Any())
+            {
+                var projectPair = projectsToTraverse.Dequeue();
+                var project = projectPair.Value;
+
+                if (projectPair.Key != projectPair.Value)
+                {
+                    yield return projectPair;
+                }
+
+                foreach (var subProject in project.ProjectReferences)
+                {
+                    projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(project,subProject));
+                }
+            }
+        }
+
+        private static Project CreateProjectFromCSProj(string fullPath)
         {
             var project = new Project();
             var projectDirectory = System.IO.Path.GetDirectoryName(fullPath);
@@ -49,7 +74,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
             project.Path = fullPath;
 
-            var document = XDocument.Load(filePath);
+            var document = XDocument.Load(fullPath);
 
             project.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
             project.AssemblyReferences = GetAssemblyReferences(project.Path, projectDirectory, document);
@@ -113,5 +138,7 @@ namespace BuildDependencyReader.ProjectFileParser
                 throw new ArgumentException(String.Format("File does not exist: '{0}'", filePath));
             }
         }
+
+
     }
 }
