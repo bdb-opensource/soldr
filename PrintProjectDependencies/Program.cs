@@ -7,6 +7,7 @@ using QuickGraph.Graphviz;
 using System.Diagnostics;
 using QuickGraph;
 using System.IO;
+using BuildDependencyReader.BuildDependencyResolver;
 
 namespace BuildDependencyReader.PrintProjectDependencies
 {
@@ -53,13 +54,29 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            var projects = args.Select(x => x.Trim())
+            if (false == args.Any())
+            {
+                Console.WriteLine("Usage: {0} <base path for searching for sln files>", Process.GetCurrentProcess().ProcessName);
+                return 1;
+            }
+            var projects = args.Skip(1)
+                               .Select(x => x.Trim())
                                .Distinct()
                                .Select(x => Project.FromCSProj(x));
 
+            var projectFinder = new ProjectFinder(args[0]);
+
             var graph = BuildDependencyResolver.BuildDependencyResolver.DependencyGraph(projects, true);
+
+            foreach (var project in graph.Vertices)
+            {
+                foreach (var targetProject in project.AssemblyReferences.SelectMany(projectFinder.FindProjectForAssemblyReference))
+                {
+                    graph.AddEdge(new SEdge<Project>(targetProject, project));
+                }
+            }
 
             var graphviz = new GraphvizAlgorithm<Project, SEdge<Project>>(graph);
             graphviz.GraphFormat.RankSeparation = 2;
@@ -73,6 +90,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 Console.WriteLine(project);
             }
+
+            return 0;
         }
 
         static void graphviz_FormatVertex(object sender, FormatVertexEventArgs<Project> e)
