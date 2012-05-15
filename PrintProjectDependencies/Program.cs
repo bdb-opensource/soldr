@@ -59,7 +59,9 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             graphviz.FormatVertex += new FormatVertexEventHandler<String>(graphviz_FormatVertex);
 
-            var outFileName = graphviz.Generate(new DotEngine(), "graph.svg");
+            var fileName = System.IO.Path.GetTempFileName() + ".svg";
+            var outFileName = graphviz.Generate(new DotEngine(), fileName);
+            Console.Out.WriteLine("GraphViz Output to: " + fileName);
 
             foreach (var project in graph.TopologicalSort())
             {

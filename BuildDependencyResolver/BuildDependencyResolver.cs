@@ -35,6 +35,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         public static AdjacencyGraph<String, SEdge<String>> SolutionDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse)
         {
             return DeepDependencies(projectFinder, projects)
+                    .Where(x => x.Key != x.Value)
                     .Select(x => ProjectEdgeToSLNEdge(projectFinder, x))
                     .Where(x => false == x.Key.ToLowerInvariant().Equals(x.Value.ToLowerInvariant()))
                     .Distinct()
