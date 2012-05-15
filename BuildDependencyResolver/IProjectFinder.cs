@@ -8,5 +8,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
     {
         IEnumerable<Project> FindProjectForAssemblyReference(AssemblyReference assemblyReference);
         FileInfo GetSLNFileForProject(Project project);
+        IEnumerable<Project> GetProjectsOfSLN(FileInfo slnFileInfo);
     }
 }

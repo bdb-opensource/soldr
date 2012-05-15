@@ -52,6 +52,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
             return slnFileInfo;
         }
 
+        public IEnumerable<Project> GetProjectsOfSLN(FileInfo slnFileInfo)
+        {
+            return this.MapProjectToSLN.Where(x => x.Value.Equals(slnFileInfo)).Select(x => x.Key);
+        }
+
         private void MapSLNsToProjects()
         {
             foreach (var slnFileInfo in this._SLNFileInfos)
