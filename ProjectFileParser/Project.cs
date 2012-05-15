@@ -27,7 +27,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public static Project FromCSProj(string filePath)
         {
-            return GetProjectForPath(System.IO.Path.GetFullPath(filePath));
+            return GetProjectForPath(System.IO.Path.GetFullPath(Uri.UnescapeDataString(filePath)));
         }
 
         private static Project GetProjectForPath(string fullPath)
@@ -43,28 +43,7 @@ namespace BuildDependencyReader.ProjectFileParser
             return project;
         }
 
-        public IEnumerable<KeyValuePair<Project, Project>> DeepDependencies()
-        {
-            var projectsToTraverse = new Queue<KeyValuePair<Project,Project>>();
-            projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(this, this));
-
-            while (projectsToTraverse.Any())
-            {
-                var projectPair = projectsToTraverse.Dequeue();
-                var project = projectPair.Value;
-
-                if (projectPair.Key != projectPair.Value)
-                {
-                    yield return projectPair;
-                }
-
-                foreach (var subProject in project.ProjectReferences)
-                {
-                    projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(project,subProject));
-                }
-            }
-        }
-
+        
         private static Project CreateProjectFromCSProj(string fullPath)
         {
             var project = new Project();

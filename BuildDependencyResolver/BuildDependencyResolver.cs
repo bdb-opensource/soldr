@@ -10,10 +10,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
 {
     public class BuildDependencyResolver
     {
-        public static IEnumerable<Project> BuildOrder(IEnumerable<Project> projects)
+        public static IEnumerable<Project> BuildOrder(IProjectFinder projectFinder, IEnumerable<Project> projects)
         {
-            return DependencyGraph(projects, true)
-                           .TopologicalSort();
+            return DependencyGraph(projectFinder, projects, true).TopologicalSort();
         }
 
         /// <summary>
@@ -25,12 +24,50 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="projects"></param>
         /// <param name="direction"></param>
         /// <returns></returns>
-        public static AdjacencyGraph<Project, SEdge<Project>> DependencyGraph(IEnumerable<Project> projects, bool reverse)
+        public static AdjacencyGraph<Project, SEdge<Project>> DependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse)
         {
-            return projects.SelectMany(x => x.DeepDependencies())
-                           .Distinct()
-                           .Select(x => new SEdge<Project>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
-                           .ToAdjacencyGraph<Project, SEdge<Project>>(false);
+            return DeepDependencies(projectFinder, projects)
+                    .Distinct()
+                    .Select(x => new SEdge<Project>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
+                    .ToAdjacencyGraph<Project, SEdge<Project>>(false);
         }
+
+
+        public static IEnumerable<KeyValuePair<Project, Project>> DeepDependencies(IProjectFinder projectFinder, IEnumerable<Project> projects)
+        {
+            var projectsToTraverse = new Queue<KeyValuePair<Project, Project>>(projects.Select(x => new KeyValuePair<Project, Project>(x, x)));
+
+            var traversedProjects = new HashSet<Project>();
+
+            while (projectsToTraverse.Any())
+            {
+                var projectPair = projectsToTraverse.Dequeue();
+                var project = projectPair.Value;
+
+                if (projectPair.Key != projectPair.Value)
+                {
+                    yield return projectPair;
+                }
+
+                if (traversedProjects.Contains(project))
+                {
+                    continue;
+                }
+                traversedProjects.Add(project);
+
+                foreach (var subProject in project.ProjectReferences)
+                {
+                    projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(project, subProject));
+                }
+                if (null != projectFinder)
+                {
+                    foreach (var assemblySubProject in project.AssemblyReferences.SelectMany(projectFinder.FindProjectForAssemblyReference))
+                    {
+                        projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(project, assemblySubProject));
+                    }
+                }
+            }
+        }
+
     }
 }
