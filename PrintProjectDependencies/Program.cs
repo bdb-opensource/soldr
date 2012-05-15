@@ -57,7 +57,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             graphviz.GraphFormat.RankSeparation = 2;
             //graphviz.GraphFormat.IsConcentrated = true;
 
-            //graphviz.FormatVertex += new FormatVertexEventHandler<Project>(graphviz_FormatVertex);
+            graphviz.FormatVertex += new FormatVertexEventHandler<String>(graphviz_FormatVertex);
 
             var outFileName = graphviz.Generate(new DotEngine(), "graph.svg");
 
@@ -69,9 +69,9 @@ namespace BuildDependencyReader.PrintProjectDependencies
             return 0;
         }
 
-        //static void graphviz_FormatVertex(object sender, FormatVertexEventArgs<Project> e)
-        //{
-        //    e.VertexFormatter.Label = e.Vertex.Name;
-        //}
+        static void graphviz_FormatVertex(object sender, FormatVertexEventArgs<String> e)
+        {
+            e.VertexFormatter.Label = e.Vertex.Replace("\\", "\\\\");
+        }
     }
 }

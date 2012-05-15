@@ -35,11 +35,17 @@ namespace BuildDependencyReader.BuildDependencyResolver
         public static AdjacencyGraph<String, SEdge<String>> SolutionDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse)
         {
             return DeepDependencies(projectFinder, projects)
-                    .Select(x => new KeyValuePair<String,String>(projectFinder.GetSLNFileForProject(x.Key).FullName, projectFinder.GetSLNFileForProject(x.Value).FullName))
+                    .Select(x => ProjectEdgeToSLNEdge(projectFinder, x))
                     .Where(x => false == x.Key.ToLowerInvariant().Equals(x.Value.ToLowerInvariant()))
                     .Distinct()
                     .Select(x => new SEdge<String>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
                     .ToAdjacencyGraph<String, SEdge<String>>(false);
+        }
+
+        private static KeyValuePair<string, string> ProjectEdgeToSLNEdge(IProjectFinder projectFinder, KeyValuePair<Project, Project> x)
+        {
+            return new KeyValuePair<String, String>(projectFinder.GetSLNFileForProject(x.Key).FullName,
+                                                    projectFinder.GetSLNFileForProject(x.Value).FullName);
         }
 
 
