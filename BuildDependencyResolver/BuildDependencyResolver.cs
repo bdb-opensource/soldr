@@ -12,7 +12,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
     {
         public static IEnumerable<Project> BuildOrder(IProjectFinder projectFinder, IEnumerable<Project> projects)
         {
-            return DependencyGraph(projectFinder, projects, true).TopologicalSort();
+            return ProjectDependencyGraph(projectFinder, projects, true).TopologicalSort();
         }
 
         /// <summary>
@@ -24,12 +24,22 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="projects"></param>
         /// <param name="direction"></param>
         /// <returns></returns>
-        public static AdjacencyGraph<Project, SEdge<Project>> DependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse)
+        public static AdjacencyGraph<Project, SEdge<Project>> ProjectDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse)
         {
             return DeepDependencies(projectFinder, projects)
                     .Distinct()
                     .Select(x => new SEdge<Project>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
                     .ToAdjacencyGraph<Project, SEdge<Project>>(false);
+        }
+
+        public static AdjacencyGraph<String, SEdge<String>> SolutionDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse)
+        {
+            return DeepDependencies(projectFinder, projects)
+                    .Select(x => new KeyValuePair<String,String>(projectFinder.GetSLNFileForProject(x.Key).FullName, projectFinder.GetSLNFileForProject(x.Value).FullName))
+                    .Where(x => false == x.Key.ToLowerInvariant().Equals(x.Value.ToLowerInvariant()))
+                    .Distinct()
+                    .Select(x => new SEdge<String>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
+                    .ToAdjacencyGraph<String, SEdge<String>>(false);
         }
 
 

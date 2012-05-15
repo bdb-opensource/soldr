@@ -104,7 +104,7 @@ namespace BuildDependencyReader.ProjectFileParser
             }
         }
 
-        private static string ResolvePath(string basePath, string pathToResolve)
+        public static string ResolvePath(string basePath, string pathToResolve)
         {
             return System.IO.Path.IsPathRooted(pathToResolve) 
                    ? pathToResolve

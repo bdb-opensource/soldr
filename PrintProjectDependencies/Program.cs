@@ -51,13 +51,13 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             var projectFinder = new ProjectFinder(args[0], true);
 
-            var graph = BuildDependencyResolver.BuildDependencyResolver.DependencyGraph(projectFinder, projects, false);
+            var graph = BuildDependencyResolver.BuildDependencyResolver.SolutionDependencyGraph(projectFinder, projects, false);
 
-            var graphviz = new GraphvizAlgorithm<Project, SEdge<Project>>(graph, "graph", QuickGraph.Graphviz.Dot.GraphvizImageType.Svg );
+            var graphviz = new GraphvizAlgorithm<String, SEdge<String>>(graph, "graph", QuickGraph.Graphviz.Dot.GraphvizImageType.Svg);
             graphviz.GraphFormat.RankSeparation = 2;
             //graphviz.GraphFormat.IsConcentrated = true;
 
-            graphviz.FormatVertex += new FormatVertexEventHandler<Project>(graphviz_FormatVertex);
+            //graphviz.FormatVertex += new FormatVertexEventHandler<Project>(graphviz_FormatVertex);
 
             var outFileName = graphviz.Generate(new DotEngine(), "graph.svg");
 
@@ -69,9 +69,9 @@ namespace BuildDependencyReader.PrintProjectDependencies
             return 0;
         }
 
-        static void graphviz_FormatVertex(object sender, FormatVertexEventArgs<Project> e)
-        {
-            e.VertexFormatter.Label = e.Vertex.Name;
-        }
+        //static void graphviz_FormatVertex(object sender, FormatVertexEventArgs<Project> e)
+        //{
+        //    e.VertexFormatter.Label = e.Vertex.Name;
+        //}
     }
 }
