@@ -41,17 +41,29 @@ namespace BuildDependencyReader.PrintProjectDependencies
         {
             if (false == args.Any())
             {
-                Console.WriteLine("Usage: {0} <base path for searching for sln files>", Process.GetCurrentProcess().ProcessName);
+                Console.Error.WriteLine("Usage: {0} <base path for searching for sln files> <csproj/sln file>... -[excluded solution file 1] -[excluded solution file 2] ... ", Process.GetCurrentProcess().ProcessName);
                 return 1;
             }
-            var projects = args.Skip(1)
-                               .Select(x => x.Trim())
-                               .Distinct()
-                               .Select(x => Project.FromCSProj(x));
+            var trimmedArgs = args.Skip(1)
+                                  .Select(x => x.Trim())
+                                  .Distinct();
+
+            // TODO : Accept also SLN files
+            var projects = trimmedArgs.Where(x => false == x.StartsWith("-"))
+                                      .Select(x => Project.FromCSProj(x))
+                                      .ToArray();
+
+            var excludedSLNs = trimmedArgs.Where(x => x.StartsWith("-"))
+                                          .Select(x => System.IO.Path.GetFullPath(x.Substring(1)).ToLowerInvariant())
+                                          .ToArray();
+
+            Console.Error.WriteLine("Excluding solutions:\n\t" + String.Join("\n\t", excludedSLNs));
 
             var projectFinder = new ProjectFinder(args[0], true);
 
             var graph = BuildDependencyResolver.BuildDependencyResolver.SolutionDependencyGraph(projectFinder, projects, false);
+
+            graph.RemoveVertexIf(x => excludedSLNs.Contains(x.ToLowerInvariant()));
 
             var graphviz = new GraphvizAlgorithm<String, SEdge<String>>(graph, "graph", QuickGraph.Graphviz.Dot.GraphvizImageType.Svg);
             graphviz.GraphFormat.RankSeparation = 2;
@@ -61,7 +73,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             var fileName = System.IO.Path.GetTempFileName() + ".svg";
             var outFileName = graphviz.Generate(new DotEngine(), fileName);
-            Console.Out.WriteLine("GraphViz Output to: " + fileName);
+            Console.Error.WriteLine("GraphViz Output to: " + fileName);
 
             foreach (var project in graph.TopologicalSort())
             {
