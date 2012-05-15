@@ -65,6 +65,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     var project = this._projects.Where(x => x.Path.ToLowerInvariant().Equals(projectFilePath.ToLowerInvariant())).SingleOrDefault();
                     if (null != project)
                     {
+                        if (this.MapProjectToSLN.ContainsKey(project))
+                        {
+                            throw new Exception(String.Format("Project {0} has ambiguous SLN {1}, {2}: ", project.Path, slnFileInfo.FullName, this.MapProjectToSLN[project].FullName));
+                        }
                         this.MapProjectToSLN.Add(project, slnFileInfo);
                     }
                 }

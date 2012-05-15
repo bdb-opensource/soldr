@@ -46,19 +46,26 @@ namespace BuildDependencyReader.ProjectFileParser
         
         private static Project CreateProjectFromCSProj(string fullPath)
         {
-            var project = new Project();
-            var projectDirectory = System.IO.Path.GetDirectoryName(fullPath);
+            try
+            {
+                var project = new Project();
+                var projectDirectory = System.IO.Path.GetDirectoryName(fullPath);
 
-            ValidateFileExists(fullPath);
+                ValidateFileExists(fullPath);
 
-            project.Path = fullPath;
+                project.Path = fullPath;
 
-            var document = XDocument.Load(fullPath);
+                var document = XDocument.Load(fullPath);
 
-            project.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
-            project.AssemblyReferences = GetAssemblyReferences(project.Path, projectDirectory, document);
-            project.ProjectReferences = GetProjectReferences(projectDirectory, document);
-            return project;
+                project.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
+                project.AssemblyReferences = GetAssemblyReferences(project.Path, projectDirectory, document).ToArray();
+                project.ProjectReferences = GetProjectReferences(projectDirectory, document).ToArray();
+                return project;
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Error while trying to process project from path: " + fullPath, e);
+            }
         }
 
         private static IEnumerable<AssemblyReference> GetAssemblyReferences(string projectFileName, string projectDirectory, XDocument csprojDocument)
@@ -91,6 +98,7 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 string absoluteFilePath = ResolvePath(projectDirectory, Uri.UnescapeDataString(projectReferenceNode.Attribute("Include").Value));
                 ValidateFileExists(absoluteFilePath);
+
                 Project project;
                 try
                 {
