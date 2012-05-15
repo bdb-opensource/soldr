@@ -63,6 +63,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     var quotedProjectFilePath = match.Value;
                     var projectFilePath = Project.ResolvePath(slnFileInfo.DirectoryName, quotedProjectFilePath.Substring(1, quotedProjectFilePath.Length - 2));
                     var project = this._projects.Where(x => x.Path.ToLowerInvariant().Equals(projectFilePath.ToLowerInvariant())).SingleOrDefault();
+                    if (false == project.Path.ToLowerInvariant().Contains(slnFileInfo.DirectoryName.ToLowerInvariant()))
+                    {
+                        Console.Error.WriteLine("WARNING: Skipping potential mapping to SLN file {0} because it is not in a parent directory of the project {1}", slnFileInfo.FullName, project.Path);
+                        continue;
+                    }
                     if (null != project)
                     {
                         if (this.MapProjectToSLN.ContainsKey(project))
