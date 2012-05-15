@@ -91,9 +91,10 @@ namespace BuildDependencyReader.ProjectFileParser
                 string hintPath = null;
                 var hintPathNode = referenceNode.Descendants(CSProjNamespace + "HintPath")
                                                 .SingleOrDefault();
+
                 if (null != hintPathNode)
                 {
-                    hintPath = ResolvePath(projectDirectory, hintPathNode.Value);
+                    hintPath = ResolvePath(projectDirectory, Uri.UnescapeDataString(hintPathNode.Value));
                     if (false == File.Exists(hintPath))
                     {
                         throw new AssemblyReferenceHintPathDoesNotExist(assemblyName, hintPath, projectFileName);
@@ -109,7 +110,7 @@ namespace BuildDependencyReader.ProjectFileParser
         {
             foreach (var projectReferenceNode in csprojDocument.Descendants(CSProjNamespace + "ProjectReference"))
             {
-                string absoluteFilePath = ResolvePath(projectDirectory, projectReferenceNode.Attribute("Include").Value);
+                string absoluteFilePath = ResolvePath(projectDirectory, Uri.UnescapeDataString(projectReferenceNode.Attribute("Include").Value));
                 ValidateFileExists(absoluteFilePath);
                 Project project;
                 try
