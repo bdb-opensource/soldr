@@ -14,8 +14,8 @@ namespace BuildDependencyReader.BuildDependencyResolver
         private HashSet<FileInfo> _CSProjFileInfos;
         private HashSet<FileInfo> _SLNFileInfos;
         private Project[] _projects;
-        private Dictionary<Project, FileInfo> MapProjectToSLN = new Dictionary<Project, FileInfo>();
-        //private Dictionary<FileInfo, Project> MapSLNToProject = new Dictionary<FileInfo, Project>();
+        private Dictionary<Project, FileInfo> _mapProjectToSLN = new Dictionary<Project, FileInfo>();
+        private Dictionary<AssemblyReference, IEnumerable<Project>> _mapAssemblyReferenceToProject;
 
         private static readonly string csProjInSLNPattern = @"""[^""]*\.csproj""";
 
@@ -39,13 +39,24 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         public IEnumerable<Project> FindProjectForAssemblyReference(AssemblyReference assemblyReference)
         {
-            return this._projects.Where(x => assemblyReference.Name.Contains(x.Name));
+            if (null == this._mapAssemblyReferenceToProject)
+            {
+                this._mapAssemblyReferenceToProject = new Dictionary<AssemblyReference, IEnumerable<Project>>();
+            }
+            IEnumerable<Project> result = null;
+            if (false == this._mapAssemblyReferenceToProject.TryGetValue(assemblyReference, out result))
+            {
+                result = this._projects.Where(x => assemblyReference.Name.ToLowerInvariant().Equals(x.Name.ToLowerInvariant()))
+                                       .ToArray();
+                this._mapAssemblyReferenceToProject.Add(assemblyReference, result);
+            }
+            return result;
         }
 
         public FileInfo GetSLNFileForProject(Project project)
         {
             FileInfo slnFileInfo;
-            if (false == this.MapProjectToSLN.TryGetValue(project, out slnFileInfo))
+            if (false == this._mapProjectToSLN.TryGetValue(project, out slnFileInfo))
             {
                 throw new ArgumentException("No .sln found for project: " + project);
             }
@@ -54,12 +65,12 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         public IEnumerable<Project> GetProjectsOfSLN(string slnFilePath)
         {
-            return this.MapProjectToSLN.Where(x => x.Value.FullName.ToLowerInvariant().Equals(slnFilePath.ToLowerInvariant())).Select(x => x.Key);
+            return this._mapProjectToSLN.Where(x => x.Value.FullName.ToLowerInvariant().Equals(slnFilePath.ToLowerInvariant())).Select(x => x.Key);
         }
 
         public IEnumerable<Project> GetProjectsOfSLN(FileInfo slnFileInfo)
         {
-            return this.MapProjectToSLN.Where(x => x.Value.Equals(slnFileInfo)).Select(x => x.Key);
+            return this._mapProjectToSLN.Where(x => x.Value.Equals(slnFileInfo)).Select(x => x.Key);
         }
 
         private void MapSLNsToProjects()
@@ -80,11 +91,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     }
                     if (null != project)
                     {
-                        if (this.MapProjectToSLN.ContainsKey(project))
+                        if (this._mapProjectToSLN.ContainsKey(project))
                         {
-                            throw new Exception(String.Format("Project {0} has ambiguous SLN {1}, {2}: ", project.Path, slnFileInfo.FullName, this.MapProjectToSLN[project].FullName));
+                            throw new Exception(String.Format("Project {0} has ambiguous SLN {1}, {2}: ", project.Path, slnFileInfo.FullName, this._mapProjectToSLN[project].FullName));
                         }
-                        this.MapProjectToSLN.Add(project, slnFileInfo);
+                        this._mapProjectToSLN.Add(project, slnFileInfo);
                     }
                 }
             }

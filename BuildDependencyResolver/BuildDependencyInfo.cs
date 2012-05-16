@@ -7,7 +7,7 @@ using BuildDependencyReader.ProjectFileParser;
 
 namespace BuildDependencyReader.BuildDependencyResolver
 {
-    public struct BuildDependencyInfo
+    public class BuildDependencyInfo
     {
         /// <summary>
         /// Full dependency graph including for each project all depenencies, including resolved assembly references. May be cyclic.
@@ -33,5 +33,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
             this.TrimmedSolutionDependencyGraph.AddVerticesAndEdgeRange(_solutionDependencyGraph.Edges);
             this.TrimmedSolutionDependencyGraph.RemoveVertexIf(x => excludedSLNs.Contains(x.ToLowerInvariant()));
         }
+
     }
 }
