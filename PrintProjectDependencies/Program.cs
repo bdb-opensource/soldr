@@ -38,34 +38,31 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
     class Program
     {
-        private const string CSPROJ_EXTENSION = ".csproj";
-        private const string SLN_EXTENSION = ".sln";
-
         static int Main(string[] args)
         {
             var exlcudedSlns = new List<string>();
             var inputFiles = new List<string>();
+            bool verbose = false;
+            bool generateGraphviz = false;
             string basePath;
-            if (false == ParseOptions(args, exlcudedSlns, inputFiles, out basePath))
+            if (false == ParseOptions(args, exlcudedSlns, inputFiles, out basePath, out verbose, out generateGraphviz))
             {
                 return 1;
             }
 
-            PrintProjectDependencies(inputFiles, exlcudedSlns, basePath);
+            PrintProjectDependencies(inputFiles, exlcudedSlns, basePath, verbose, generateGraphviz);
 
             return 0;
         }
 
-        private static string CanonicalPath(string x)
+        private static void PrintProjectDependencies(IEnumerable<string> _inputFiles, IEnumerable<string> _excludedSLNs, string basePath, bool verbose, bool generateGraphviz)
         {
-            return System.IO.Path.GetFullPath(x.Trim());
-        }
+            var graph = BuildDependencyResolver.BuildDependencyResolver.SolutionDependencyGraph(_inputFiles, _excludedSLNs, basePath, verbose);
 
-        private static void PrintProjectDependencies(IEnumerable<string> _inputFiles, IEnumerable<string> _excludedSLNs, string basePath)
-        {
-            var graph = GetSolutionDependencyGraph(_inputFiles, _excludedSLNs, basePath);
-
-            GenerateGraphViz(graph);
+            if (generateGraphviz)
+            {
+                GenerateGraphViz(graph);
+            }
 
             foreach (var project in graph.TopologicalSort())
             {
@@ -86,118 +83,73 @@ namespace BuildDependencyReader.PrintProjectDependencies
             Console.Error.WriteLine("GraphViz Output to: " + fileName);
         }
 
-        private static AdjacencyGraph<string, SEdge<string>> GetSolutionDependencyGraph(IEnumerable<string> _inputFiles, IEnumerable<string> _excludedSLNs, string basePath)
-        {
-            string[] projectFiles;
-            string[] slnFiles;
-            ProcessInputFiles(_inputFiles.Select(CanonicalPath), out projectFiles, out slnFiles);
+        
 
-            var excludedSLNs = _excludedSLNs.Select(CanonicalPath)
-                                            .Select(x => x.ToLowerInvariant())
-                                            .ToArray();
-
-            if (excludedSLNs.Any(x => false == SLN_EXTENSION.Equals(System.IO.Path.GetExtension(x))))
-            {
-                throw new ArgumentException("excluded files must have extension: " + SLN_EXTENSION, "_excludedSLNs");
-            }
-
-            var projectFinder = new ProjectFinder(basePath, true);
-
-
-            var csprojProjects = projectFiles.Select(Project.FromCSProj);
-            var slnProjects = slnFiles.SelectMany(projectFinder.GetProjectsOfSLN);
-
-            var projects = csprojProjects.Union(slnProjects).ToArray();
-            PrintInputInfo(excludedSLNs, projectFiles, slnFiles, projects);
-
-            var graph = BuildDependencyResolver.BuildDependencyResolver.SolutionDependencyGraph(projectFinder, projects, false);
-
-            graph.RemoveVertexIf(x => excludedSLNs.Contains(x.ToLowerInvariant()));
-            return graph;
-        }
-
-        private static void ProcessInputFiles(IEnumerable<string> inputFiles, out string[] projectFiles, out string[] slnFiles)
-        {
-            slnFiles = new string[] { };
-            projectFiles = new string[] { };
-            var filesByExtensions = inputFiles.GroupBy(System.IO.Path.GetExtension);
-            foreach (var extensionGroup in filesByExtensions)
-            {
-                switch (extensionGroup.Key)
-                {
-                    case CSPROJ_EXTENSION:
-                        projectFiles = extensionGroup.ToArray();
-                        break;
-                    case SLN_EXTENSION:
-                        slnFiles = extensionGroup.ToArray();
-                        break;
-
-                    default:
-                        throw new ArgumentException(String.Format("Unknown file type: '{0}' in {1}", extensionGroup.Key, String.Join(", ", extensionGroup)), "_inputFiles");
-                }
-            }
-        }
-
-        private static void PrintInputInfo(string[] excludedSLNs, IEnumerable<string> projectFiles, IEnumerable<string> slnFiles, Project[] projects)
-        {
-            Console.Error.WriteLine("Input CSPROJ files:\n\t" + String.Join("\n\t", projectFiles));
-            Console.Error.WriteLine("Input SLN files:\n\t" + String.Join("\n\t", slnFiles));
-            Console.Error.WriteLine("Input projects:\n\t" + String.Join("\n\t", projects.Select(x => x.Path)));
-
-            Console.Error.WriteLine("Excluding solutions:\n\t" + String.Join("\n\t", excludedSLNs));
-        }
-
-
-        private static bool ParseOptions(string[] args, List<string> exlcudedSlns, List<string> inputFiles, out string basePath)
+        private static bool ParseOptions(string[] args, List<string> exlcudedSlns, List<string> inputFiles, out string basePath, out bool verbose, out bool generateGraphviz)
         {
             bool userRequestsHelp = false;
-            bool showHelp = false;
-            var options = new OptionSet();
 
             string _basePath = null;
+            bool _verbose = false;
+            bool _generateGraphviz = false;
             basePath = null;
+            verbose = false;
+            generateGraphviz = false;
 
-
+            var options = new OptionSet();
             options.Add("b|basePath=",
                         "base path for searching for sln / csproj files",
                         x => _basePath = x);
             options.Add("x|exclude=", 
                         "exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
                         x => exlcudedSlns.Add(x));
+            options.Add("v|verbose",
+                        "print verbose output (will go to stderr)",
+                        x => _verbose = (null != x));
+            options.Add("g|graphviz",
+                        "generate graphviz output",
+                        x => _generateGraphviz = (null != x));
             options.Add("h|help", 
                         "show help", 
                         x => userRequestsHelp = (null != x));
 
-            string message = String.Empty;
-
+            string errorMessage = null;
             try
             {
                 inputFiles.AddRange(options.Parse(args));
-                basePath = _basePath;
             }
             catch (OptionException e)
             {
-                message = e.Message;
-                showHelp = true;
+                errorMessage = e.Message;
             }
+            basePath = _basePath;
+            verbose = _verbose;
+            generateGraphviz = _generateGraphviz;
 
-            if (userRequestsHelp)
+            return ValidateOptions(basePath, userRequestsHelp, options, errorMessage);
+        }
+
+        private static bool ValidateOptions(string basePath, bool userRequestsHelp, OptionSet options, string errorMessage)
+        {
+            string message = null;
+            if (null != errorMessage)
+            {
+                message = errorMessage;
+            }
+            else if (userRequestsHelp)
             {
                 message = "Showing Help";
-                showHelp = true;
             }
             else if (String.IsNullOrWhiteSpace(basePath))
             {
                 message = "Missing base path";
-                showHelp = true;
             }
             else if (false == System.IO.Directory.Exists(basePath))
             {
                 message = "Base path does not exist: '" + basePath + "'";
-                showHelp = true;
             }
 
-            if (showHelp) 
+            if (null != message)
             {
                 ShowHelp(message, options);
                 return false;
