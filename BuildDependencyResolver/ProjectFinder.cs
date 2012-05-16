@@ -17,7 +17,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         private Dictionary<Project, FileInfo> _mapProjectToSLN = new Dictionary<Project, FileInfo>();
         private Dictionary<AssemblyReference, IEnumerable<Project>> _mapAssemblyReferenceToProject;
 
-        private static readonly string csProjInSLNPattern = @"""[^""]*\.csproj""";
+        private static readonly Regex csProjInSLNRegex = new Regex(@"""[^""]*\.csproj""", RegexOptions.IgnoreCase);
 
         public ProjectFinder(string searchRootPath, bool allowAssemblyProjectAmbiguities)
         {
@@ -84,7 +84,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             {
                 var slnFile = slnFileInfo.OpenText();
                 var data = slnFile.ReadToEnd();
-                foreach (var match in Regex.Matches(data, csProjInSLNPattern).Cast<Match>().Where(x => x.Success))
+                foreach (var match in csProjInSLNRegex.Matches(data).Cast<Match>().Where(x => x.Success))
                 {
                     var quotedProjectFilePath = match.Value;
                     var projectFilePath = Project.ResolvePath(slnFileInfo.DirectoryName, quotedProjectFilePath.Substring(1, quotedProjectFilePath.Length - 2));
