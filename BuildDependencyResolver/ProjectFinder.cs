@@ -52,6 +52,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
             return slnFileInfo;
         }
 
+        public IEnumerable<Project> GetProjectsOfSLN(string slnFilePath)
+        {
+            return this.MapProjectToSLN.Where(x => x.Value.FullName.ToLowerInvariant().Equals(slnFilePath.ToLowerInvariant())).Select(x => x.Key);
+        }
+
         public IEnumerable<Project> GetProjectsOfSLN(FileInfo slnFileInfo)
         {
             return this.MapProjectToSLN.Where(x => x.Value.Equals(slnFileInfo)).Select(x => x.Key);
@@ -94,18 +99,23 @@ namespace BuildDependencyReader.BuildDependencyResolver
             {
                 return;
             }
-            var message = String.Format("Multiple projects with same name found - cannot realiably calculate assembly dependencies:\n\t{0}",
-                                        String.Join("\n\t", collidingProjects.Select(CollidingProjectsDescriptionString)));
-            Console.Error.WriteLine("Warning: " + message);
+            var message = "Multiple projects with same name found - cannot realiably calculate assembly dependencies:\n"
+                          + Tabify(collidingProjects.Select(CollidingProjectsDescriptionString));
+            Console.Error.WriteLine("WARNING: " + message);
             if (false == allowAssemblyProjectAmbiguities)
             {
                 throw new ArgumentException(message);
             }
         }
 
-        private static string CollidingProjectsDescriptionString(IGrouping<string, Project> x)
+        private static string Tabify(IEnumerable<string> strings)
         {
-            return x.Key + " - " + String.Join(", ", x.Select(y => y.Path));
+            return "\t" + String.Join("\n\t", strings.SelectMany(x => x.Split('\n')));
+        }
+
+        private static string CollidingProjectsDescriptionString(IGrouping<string, Project> group)
+        {
+            return String.Format("{0}:\n{1}", group.Key, Tabify(group.Select(y => y.Path)));
         }
 
         private static void ValidateDirectoryExists(string searchRootPath)

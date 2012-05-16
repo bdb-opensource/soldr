@@ -10,21 +10,38 @@ namespace BuildDependencyReader.ProjectFileParser
 {
     public class Project
     {
+        #region Constants
+
         protected static readonly XNamespace CSProjNamespace = "http://schemas.microsoft.com/developer/msbuild/2003";
+        // Thanks to http://regexhero.net/tester/
+        protected static readonly Regex CONFIG_PLATFORM_REGEX
+            = new Regex(@"\' *\$\(Configuration\)(\|\$\(Platform\))? *\' *=+ *\'(?<config>[^\|]*)(\|(?<platform>[^']*))?\'");
+
+        #endregion
+
+        #region Public Members
 
         public string Name { get; protected set; }
         public string Path { get; protected set; }
         public IEnumerable<Project> ProjectReferences { get; protected set; }
         public IEnumerable<AssemblyReference> AssemblyReferences { get; protected set; }
-        private IEnumerable<ProjectConfiguration> Configurations { get; protected set; }
+        public IEnumerable<ProjectConfiguration> Configurations { get; protected set; }
+
+        #endregion
+
+        #region Protected Members
 
         protected static Dictionary<String, Project> ResolvedProjectsCache = new Dictionary<string, Project>();
 
-        // Thanks to http://regexhero.net/tester/
-        protected static readonly Regex CONFIG_PLATFORM_REGEX 
-            = new Regex(@"\' *\$\(Configuration\)\|\$\(Platform\) *\' *=+ *\'(?<config>[^\|]*)\|(?<platform>[^']*)\'");
+        #endregion
+
+        #region Constructors
 
         protected Project() { }
+
+        #endregion
+
+        #region Public Methods
 
         public override string ToString()
         {
@@ -36,7 +53,27 @@ namespace BuildDependencyReader.ProjectFileParser
             return GetProjectForPath(System.IO.Path.GetFullPath(Uri.UnescapeDataString(filePath)));
         }
 
-        private static Project GetProjectForPath(string fullPath)
+
+        public static string ResolvePath(string basePath, string pathToResolve)
+        {
+            return System.IO.Path.IsPathRooted(pathToResolve) 
+                   ? pathToResolve
+                   : System.IO.Path.GetFullPath(System.IO.Path.Combine(basePath, pathToResolve));
+        }
+
+        #endregion
+
+        #region Protected Methods
+
+        protected static void ValidateFileExists(string filePath)
+        {
+            if (false == File.Exists(filePath))
+            {
+                throw new ArgumentException(String.Format("File does not exist: '{0}'", filePath));
+            }
+        }
+
+        protected static Project GetProjectForPath(string fullPath)
         {
             Project cachedProject = null;
             if (ResolvedProjectsCache.TryGetValue(fullPath, out cachedProject))
@@ -49,8 +86,8 @@ namespace BuildDependencyReader.ProjectFileParser
             return project;
         }
 
-        
-        private static Project CreateProjectFromCSProj(string fullPath)
+
+        protected static Project CreateProjectFromCSProj(string fullPath)
         {
             try
             {
@@ -75,86 +112,83 @@ namespace BuildDependencyReader.ProjectFileParser
             }
         }
 
-        private static IEnumerable<ProjectConfiguration> GetProjectConfigurations(XDocument document)
+        protected static IEnumerable<ProjectConfiguration> GetProjectConfigurations(XDocument document)
         {
-            List<ProjectConfiguration> configurations = new List<ProjectConfiguration>();
-            foreach (var configurationElement in document.Descendants(CSProjNamespace + "PropertyGroup")
-                                                         .Where(x => x.Attribute("Condition").Value.Contains("$(Configuration)")))
+            return document.Descendants(CSProjNamespace + "PropertyGroup")
+                           .Where(IsConfigurationPropertyGroup)
+                           .Select(ParseProjectConfiguration);
+        }
+
+        protected static IEnumerable<AssemblyReference> GetAssemblyReferences(string projectFileName, string projectDirectory, XDocument csprojDocument)
+        {
+            return csprojDocument.Descendants(CSProjNamespace + "Reference")
+                                 .Select(x => ParseAssemblyReferenceElement(projectFileName, projectDirectory, x));
+        }
+
+        protected static IEnumerable<Project> GetProjectReferences(string projectDirectory, XDocument csprojDocument)
+        {
+            return csprojDocument.Descendants(CSProjNamespace + "ProjectReference")
+                                 .Select(x => GetProjectFromProjectReferenceNode(projectDirectory, x));
+        }
+
+
+        protected static ProjectConfiguration ParseProjectConfiguration(XElement configurationPropertyGroupElement)
+        {
+            var conditionAttr = configurationPropertyGroupElement.Attribute("Condition");
+            var match = CONFIG_PLATFORM_REGEX.Match(conditionAttr.Value);
+            if ((false == match.Success) || String.IsNullOrWhiteSpace(match.Groups["config"].Value))
             {
-                var conditionAttr = configurationElement.Attribute("Condition");
-                var match = CONFIG_PLATFORM_REGEX.Match(conditionAttr.Value);
-                if ((false == match.Success) || (match.Groups.Cast<Capture>().Select(x => x.Value).Any(String.IsNullOrWhiteSpace)))
-                {
-                    throw new Exception(String.Format("Failed to parse configuration Condition attribute: '{0}'. Match was: '{1}'.", 
-                                                      conditionAttr, match));
-                }
-                var outputPath = configurationElement.Descendants(CSProjNamespace + "OutputPath")
-                                                     .Single()
-                                                     .Value;
-                configurations.Add(new ProjectConfiguration(match.Groups["config"].Value, match.Groups["platform"].Value, outputPath));
+                throw new Exception(String.Format("Failed to parse configuration Condition attribute: '{0}'. Match was: '{1}'.",
+                                                    conditionAttr, match));
             }
-            return configurations;
+            var outputPath = configurationPropertyGroupElement.Descendants(CSProjNamespace + "OutputPath")
+                                                    .Single()
+                                                    .Value;
+            return new ProjectConfiguration(match.Groups["config"].Value, match.Groups["platform"].Value, outputPath);
         }
 
-        private static IEnumerable<AssemblyReference> GetAssemblyReferences(string projectFileName, string projectDirectory, XDocument csprojDocument)
+        protected static bool IsConfigurationPropertyGroup(XElement propertyGroupElement)
         {
-            var assemblyReferences = new List<AssemblyReference>();
-            foreach (var referenceNode in csprojDocument.Descendants(CSProjNamespace + "Reference"))
+            var conditionAttribute = propertyGroupElement.Attribute("Condition");
+            return (null != conditionAttribute)
+                && conditionAttribute.Value.ToLowerInvariant().Contains("$(Configuration)".ToLowerInvariant());
+        }
+
+        protected static AssemblyReference ParseAssemblyReferenceElement(string projectFileName, string projectDirectory, XElement referenceNode)
+        {
+            var assemblyName = referenceNode.Attribute("Include").Value;
+            string hintPath = null;
+            var hintPathNode = referenceNode.Descendants(CSProjNamespace + "HintPath")
+                                            .SingleOrDefault();
+
+            if (null != hintPathNode)
             {
-                var assemblyName = referenceNode.Attribute("Include").Value;
-                string hintPath = null;
-                var hintPathNode = referenceNode.Descendants(CSProjNamespace + "HintPath")
-                                                .SingleOrDefault();
-
-                if (null != hintPathNode)
+                hintPath = ResolvePath(projectDirectory, Uri.UnescapeDataString(hintPathNode.Value));
+                if (false == File.Exists(hintPath))
                 {
-                    hintPath = ResolvePath(projectDirectory, Uri.UnescapeDataString(hintPathNode.Value));
-                    if (false == File.Exists(hintPath))
-                    {
-                        throw new AssemblyReferenceHintPathDoesNotExist(assemblyName, hintPath, projectFileName);
-                    }
+                    throw new AssemblyReferenceHintPathDoesNotExist(assemblyName, hintPath, projectFileName);
                 }
-
-                assemblyReferences.Add(new AssemblyReference(assemblyName, hintPath));
             }
-            return assemblyReferences;
+            return new AssemblyReference(assemblyName, hintPath);
         }
 
-        private static IEnumerable<Project> GetProjectReferences(string projectDirectory, XDocument csprojDocument)
+        protected static Project GetProjectFromProjectReferenceNode(string projectDirectory, XElement projectReferenceNode)
         {
-            foreach (var projectReferenceNode in csprojDocument.Descendants(CSProjNamespace + "ProjectReference"))
+            string absoluteFilePath = ResolvePath(projectDirectory, Uri.UnescapeDataString(projectReferenceNode.Attribute("Include").Value));
+            ValidateFileExists(absoluteFilePath);
+
+            Project project;
+            try
             {
-                string absoluteFilePath = ResolvePath(projectDirectory, Uri.UnescapeDataString(projectReferenceNode.Attribute("Include").Value));
-                ValidateFileExists(absoluteFilePath);
-
-                Project project;
-                try
-                {
-                    project = Project.FromCSProj(absoluteFilePath);
-                }
-                catch (Exception e)
-                {
-                    throw new ArgumentException("Error when trying to resolve referenced project: " + absoluteFilePath, e);
-                }
-                yield return project;
+                project = Project.FromCSProj(absoluteFilePath);
             }
-        }
-
-        public static string ResolvePath(string basePath, string pathToResolve)
-        {
-            return System.IO.Path.IsPathRooted(pathToResolve) 
-                   ? pathToResolve
-                   : System.IO.Path.GetFullPath(System.IO.Path.Combine(basePath, pathToResolve));
-        }
-
-        private static void ValidateFileExists(string filePath)
-        {
-            if (false == File.Exists(filePath))
+            catch (Exception e)
             {
-                throw new ArgumentException(String.Format("File does not exist: '{0}'", filePath));
+                throw new ArgumentException("Error when trying to resolve referenced project: " + absoluteFilePath, e);
             }
+            return project;
         }
 
-
+        #endregion
     }
 }
