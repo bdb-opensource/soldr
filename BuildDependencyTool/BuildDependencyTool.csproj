@@ -8,8 +8,8 @@
     <ProjectGuid>{2A032862-70C2-4AE1-8AAB-6D38F17876F7}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BuildDependencyReader.PrintProjectDependencies</RootNamespace>
-    <AssemblyName>BuildDependencyReader.PrintProjectDependencies</AssemblyName>
+    <RootNamespace>BuildDependencyReader.BuildDependencyTool</RootNamespace>
+    <AssemblyName>BuildDependencyReader.BuildDependencyTool</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile>Client</TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
