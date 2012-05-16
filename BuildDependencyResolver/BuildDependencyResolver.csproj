@@ -54,6 +54,7 @@
   <ItemGroup>
     <Compile Include="BuildDependencyResolver.cs" />
     <Compile Include="IProjectFinder.cs" />
+    <Compile Include="BuildDependencyInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ProjectFinder.cs" />
   </ItemGroup>

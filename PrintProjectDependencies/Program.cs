@@ -57,14 +57,14 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
         private static void PrintProjectDependencies(IEnumerable<string> _inputFiles, IEnumerable<string> _excludedSLNs, string basePath, bool verbose, bool generateGraphviz)
         {
-            var graph = BuildDependencyResolver.BuildDependencyResolver.SolutionDependencyGraph(_inputFiles, _excludedSLNs, basePath, verbose);
+            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.DependencyInfo(_inputFiles, _excludedSLNs, basePath, verbose);
 
             if (generateGraphviz)
             {
-                GenerateGraphViz(graph);
+                GenerateGraphViz(dependencyInfo.SolutionDependencyGraph);
             }
 
-            foreach (var project in graph.TopologicalSort())
+            foreach (var project in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
                 Console.WriteLine(project);
             }
