@@ -5,10 +5,10 @@ using System.Text;
 
 namespace BuildDependencyReader.ProjectFileParser
 {
-    public class AssemblyReference
+    public struct AssemblyReference
     {
-        public string HintPath { get; protected set; }
-        public string Name { get; protected set; }
+        public readonly string HintPath;
+        public readonly string Name;
 
         public AssemblyReference(string name, string hintPath)
         {
