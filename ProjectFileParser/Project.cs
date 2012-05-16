@@ -4,6 +4,7 @@ using System.Linq;
 using System.Xml.Linq;
 using System.Text;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace BuildDependencyReader.ProjectFileParser
 {
@@ -15,8 +16,13 @@ namespace BuildDependencyReader.ProjectFileParser
         public string Path { get; protected set; }
         public IEnumerable<Project> ProjectReferences { get; protected set; }
         public IEnumerable<AssemblyReference> AssemblyReferences { get; protected set; }
+        private IEnumerable<ProjectConfiguration> Configurations { get; protected set; }
 
         protected static Dictionary<String, Project> ResolvedProjectsCache = new Dictionary<string, Project>();
+
+        // Thanks to http://regexhero.net/tester/
+        protected static readonly Regex CONFIG_PLATFORM_REGEX 
+            = new Regex(@"\' *\$\(Configuration\)\|\$\(Platform\) *\' *=+ *\'(?<config>[^\|]*)\|(?<platform>[^']*)\'");
 
         protected Project() { }
 
@@ -58,6 +64,7 @@ namespace BuildDependencyReader.ProjectFileParser
                 var document = XDocument.Load(fullPath);
 
                 project.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
+                project.Configurations = GetProjectConfigurations(document).ToArray();
                 project.AssemblyReferences = GetAssemblyReferences(project.Path, projectDirectory, document).ToArray();
                 project.ProjectReferences = GetProjectReferences(projectDirectory, document).ToArray();
                 return project;
@@ -66,6 +73,27 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 throw new Exception("Error while trying to process project from path: " + fullPath, e);
             }
+        }
+
+        private static IEnumerable<ProjectConfiguration> GetProjectConfigurations(XDocument document)
+        {
+            List<ProjectConfiguration> configurations = new List<ProjectConfiguration>();
+            foreach (var configurationElement in document.Descendants(CSProjNamespace + "PropertyGroup")
+                                                         .Where(x => x.Attribute("Condition").Value.Contains("$(Configuration)")))
+            {
+                var conditionAttr = configurationElement.Attribute("Condition");
+                var match = CONFIG_PLATFORM_REGEX.Match(conditionAttr.Value);
+                if ((false == match.Success) || (match.Groups.Cast<Capture>().Select(x => x.Value).Any(String.IsNullOrWhiteSpace)))
+                {
+                    throw new Exception(String.Format("Failed to parse configuration Condition attribute: '{0}'. Match was: '{1}'.", 
+                                                      conditionAttr, match));
+                }
+                var outputPath = configurationElement.Descendants(CSProjNamespace + "OutputPath")
+                                                     .Single()
+                                                     .Value;
+                configurations.Add(new ProjectConfiguration(match.Groups["config"].Value, match.Groups["platform"].Value, outputPath));
+            }
+            return configurations;
         }
 
         private static IEnumerable<AssemblyReference> GetAssemblyReferences(string projectFileName, string projectDirectory, XDocument csprojDocument)
