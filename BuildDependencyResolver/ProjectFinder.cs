@@ -78,6 +78,19 @@ namespace BuildDependencyReader.BuildDependencyResolver
             return this._mapProjectToSLN.Where(x => x.Value.Equals(slnFileInfo)).Select(x => x.Key);
         }
 
+
+        public string GetBuildPathForAssemblyReference(AssemblyReference assemblyReference)
+        {
+            var project = this.FindProjectForAssemblyReference(assemblyReference).Single();
+            if (false == project.DefaultConfiguration.HasValue)
+            {
+                throw new Exception(String.Format("Can't resolve build path from which to fetch assembly reference because the project that builds it has no default configuration (Project = {0}, AssemblyReference = {1})",
+                                                    project, assemblyReference));
+            }
+            return project.DefaultConfiguration.Value.OutputPath;
+        }
+
+
         private void MapSLNsToProjects()
         {
             foreach (var slnFileInfo in this._SLNFileInfos)

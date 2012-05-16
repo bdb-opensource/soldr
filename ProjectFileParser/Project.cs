@@ -26,6 +26,7 @@ namespace BuildDependencyReader.ProjectFileParser
         public IEnumerable<Project> ProjectReferences { get; protected set; }
         public IEnumerable<AssemblyReference> AssemblyReferences { get; protected set; }
         public IEnumerable<ProjectConfiguration> Configurations { get; protected set; }
+        public Nullable<ProjectConfiguration> DefaultConfiguration { get; protected set; }
 
         #endregion
 
@@ -102,6 +103,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
                 project.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
                 project.Configurations = GetProjectConfigurations(document).ToArray();
+                project.DefaultConfiguration = FindDefaultConfiguration(project, document);
                 project.AssemblyReferences = GetAssemblyReferences(project.Path, projectDirectory, document).ToArray();
                 project.ProjectReferences = GetProjectReferences(projectDirectory, document).ToArray();
                 return project;
@@ -110,6 +112,32 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 throw new Exception("Error while trying to process project from path: " + fullPath, e);
             }
+        }
+
+        private static Nullable<ProjectConfiguration> FindDefaultConfiguration(Project project, XDocument document)
+        {
+            var defaultConfigurationElement = document.Descendants(CSProjNamespace + "Configuration").SingleOrDefault();
+            if (null == defaultConfigurationElement)
+            {
+                return null;
+            }
+            string defaultConfigurationName = defaultConfigurationElement.Value.Trim();
+            var configsWithMatchingName = project.Configurations
+                                                 .Where(x => x.Configuration.ToLowerInvariant().Equals(defaultConfigurationName.ToLowerInvariant()))
+                                                 .ToArray();
+
+            string defaultPlatform = null;
+            var defaultPlatformElement = document.Descendants(CSProjNamespace + "Platform").SingleOrDefault();
+            if (null != defaultPlatformElement)
+            {
+                defaultPlatform = defaultPlatformElement.Value.Trim().ToLowerInvariant();
+            }
+            if (String.IsNullOrWhiteSpace(defaultPlatform)) {
+                return configsWithMatchingName.SingleOrDefault(x => String.IsNullOrWhiteSpace(x.Platform));
+            }
+
+            return configsWithMatchingName.Where(x => false == String.IsNullOrWhiteSpace(x.Platform))
+                                          .SingleOrDefault(x => defaultPlatform.Equals(x.Platform.ToLowerInvariant()));
         }
 
         protected static IEnumerable<ProjectConfiguration> GetProjectConfigurations(XDocument document)
