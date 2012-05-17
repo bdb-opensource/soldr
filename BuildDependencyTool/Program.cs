@@ -94,6 +94,11 @@ namespace BuildDependencyReader.PrintProjectDependencies
             process.Start();
             Console.Error.Write(process.StandardOutput.ReadToEnd());
             Console.Error.Write(process.StandardError.ReadToEnd());
+            process.WaitForExit();
+            if (0 != process.ExitCode)
+            {
+                throw new Exception("Build failed: " + solutionFileName);
+            }
         }
 
         private static void GenerateGraphViz(AdjacencyGraph<string, SEdge<string>> graph)
