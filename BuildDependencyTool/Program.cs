@@ -72,23 +72,27 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Console.WriteLine("Buildling: '{0}'", solutionFileName);
+                Console.WriteLine("Building Solution: '{0}'", solutionFileName);
+                Console.WriteLine("\tCopying dependencies...");
                 Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, 
                                                                 projectFinder.GetProjectsOfSLN(solutionFileName)
                                                                              .SelectMany(x => x.AssemblyReferences)
                                                                              .Distinct());
+                Console.WriteLine("\tCleaning...");
+                MSBuild(solutionFileName, "/t:clean");
+                Console.WriteLine("\tBuilding...");
                 MSBuild(solutionFileName);
-                Console.WriteLine("Done: '{0}'", solutionFileName);
+                Console.WriteLine("\tDone: '{0}'", solutionFileName);
             }
         }
 
-        private static void MSBuild(string solutionFileName)
+        private static void MSBuild(string solutionFileName, string args = "")
         {
             var process = new Process();
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.FileName = @"C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe";
-            process.StartInfo.Arguments = String.Format("/nologo /v:quiet \"{0}\"", solutionFileName);
+            process.StartInfo.Arguments = String.Format("/nologo /v:quiet \"{0}\" {1}", solutionFileName, args);
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.RedirectStandardOutput = true;
             process.Start();

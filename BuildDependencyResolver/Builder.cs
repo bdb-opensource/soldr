@@ -29,11 +29,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 var source = projectOutput.FullName;
                 var target = System.IO.Path.Combine(targetPath, projectOutput.Name);
 
-                Console.Error.Write(String.Format("copying {0} -> {1}...", source, target));
+                //Console.Error.Write(String.Format("copying {0} -> {1}...", source, target));
 
                 System.IO.File.Copy(source, target, true);
 
-                Console.Error.WriteLine("Done.");
+                //Console.Error.WriteLine("Done.");
             }
         }
     }
