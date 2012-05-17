@@ -57,7 +57,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
         private static void PrintProjectDependencies(IEnumerable<string> _inputFiles, IEnumerable<string> _excludedSLNs, string basePath, bool verbose, bool generateGraphviz)
         {
-            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.DependencyInfo(_inputFiles, _excludedSLNs, basePath, verbose);
+            var projectFinder = new ProjectFinder(basePath, true);
+            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.DependencyInfo(projectFinder, _inputFiles, _excludedSLNs, verbose);
 
             if (generateGraphviz)
             {

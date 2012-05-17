@@ -6,9 +6,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
 {
     public interface IProjectFinder
     {
-        string GetBuildPathForAssemblyReference(AssemblyReference assemblyReference);
         IEnumerable<Project> FindProjectForAssemblyReference(AssemblyReference assemblyReference);
         FileInfo GetSLNFileForProject(Project project);
+        IEnumerable<Project> GetProjectsOfSLN(string slnFilePath);
         IEnumerable<Project> GetProjectsOfSLN(FileInfo slnFileInfo);
     }
 }

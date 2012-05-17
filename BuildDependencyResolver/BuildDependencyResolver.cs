@@ -55,7 +55,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="_excludedSLNs">Solution (.sln) files that should be excluded from the final dependency graph - useful for temporarily ignoring cyclic dependencies. 
         /// Note that .sln files may appear in the final graph even if they are not given in the input files list, if something in the input depends on them.</param>
         /// <param name="basePath">Base path to start search for dependency .sln and .csproj files (used mainly for resolving assembly references)</param>
-        public static BuildDependencyInfo DependencyInfo(IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs, string basePath, bool verbose)
+        public static BuildDependencyInfo DependencyInfo(IProjectFinder projectFinder, IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs, bool verbose)
         {
             string[] projectFiles;
             string[] slnFiles;
@@ -72,7 +72,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
             var csprojProjects = projectFiles.Select(Project.FromCSProj);
 
-            var projectFinder = new ProjectFinder(basePath, true);
             var slnProjects = slnFiles.SelectMany(projectFinder.GetProjectsOfSLN);
 
             var projects = csprojProjects.Union(slnProjects).ToArray();

@@ -62,9 +62,56 @@ namespace BuildDependencyReader.ProjectFileParser
                    : System.IO.Path.GetFullPath(System.IO.Path.Combine(basePath, pathToResolve));
         }
 
+        protected bool _enumeratingProjectOutputs = false;
+        /// <summary>
+        /// Returns the set of files that seems to have been created when this project was built.
+        /// <para><em>Note:</em> Project AND all dependencies (ie. referenced projects) must first be built for this to work.</para>
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerable<FileInfo> GetBuiltProjectOutputs()
+        {
+            if (_enumeratingProjectOutputs)
+            {
+                // Reentrancy occurred. Must have a cyclic reference with another Project
+                return new FileInfo[] { };
+            }
+            this._enumeratingProjectOutputs = true;
+            try
+            {
+                return GetBuiltProjectOutputsWithoutCyclicProtection().ToArray();
+            }
+            finally
+            {
+                this._enumeratingProjectOutputs = false;
+            }
+        }
+
         #endregion
 
         #region Protected Methods
+
+        private IEnumerable<FileInfo> GetBuiltProjectOutputsWithoutCyclicProtection()
+        {
+            if (false == this.DefaultConfiguration.HasValue)
+            {
+                throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the project no default configuration (Project = {0})",
+                                                  this));
+            }
+            var directoryInfo = new DirectoryInfo(this.DefaultConfiguration.Value.OutputPath);
+            return directoryInfo.EnumerateFiles()
+                                .Where(f => (false == ExistsAssemblyReferenceWithName(f.Name))
+                                         && (false == ExistsReferencedProjectOutputWithName(f.Name)));
+        }
+
+        private bool ExistsReferencedProjectOutputWithName(string fileName)
+        {
+            return this.ProjectReferences.SelectMany(p => p.GetBuiltProjectOutputs()).Any(pf => pf.Name.Equals(fileName, StringComparison.InvariantCultureIgnoreCase));
+        }
+
+        private bool ExistsAssemblyReferenceWithName(string fileName)
+        {
+            return this.AssemblyReferences.Any(a => System.IO.Path.GetFileName(a.HintPath).Equals(fileName, StringComparison.InvariantCultureIgnoreCase));
+        }
 
         protected static void ValidateFileExists(string filePath)
         {

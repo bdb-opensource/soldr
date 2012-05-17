@@ -8,17 +8,33 @@ namespace BuildDependencyReader.BuildDependencyResolver
 {
     public class Builder
     {
-        private IDictionary<AssemblyReference, string> CalculateAssemblyBuildPaths(IProjectFinder projectFinder, IEnumerable<Project> projects)
+        public static void CopyAssemblyReferencesFromBuiltProjects(IProjectFinder projectFinder, Project project)
         {
-            var assemblyBuildPaths = new Dictionary<AssemblyReference, string>();
-
-            foreach (var assemblyReference in projects.SelectMany(x => x.AssemblyReferences).Distinct())
+            foreach (var assemblyReference in project.AssemblyReferences)
             {
-                assemblyBuildPaths.Add(assemblyReference, projectFinder.GetBuildPathForAssemblyReference(assemblyReference));
+                var buildingProject = projectFinder.FindProjectForAssemblyReference(assemblyReference).SingleOrDefault();
+                if (null == buildingProject)
+                {
+                    continue;
+                }
+                var targetPath = System.IO.Path.GetDirectoryName(assemblyReference.HintPath);
+                CopyProjectOutputsToDirectory(buildingProject, targetPath);
             }
-            return assemblyBuildPaths;
         }
 
+        public static void CopyProjectOutputsToDirectory(Project project, string targetPath)
+        {
+            foreach (var projectOutput in project.GetBuiltProjectOutputs())
+            {
+                var source = projectOutput.FullName;
+                var target = System.IO.Path.Combine(targetPath, projectOutput.Name);
 
+                Console.Error.Write(String.Format("copying {0} -> {1}...", source, target));
+
+                System.IO.File.Copy(source, target, true);
+
+                Console.Error.WriteLine("Done.");
+            }
+        }
     }
 }

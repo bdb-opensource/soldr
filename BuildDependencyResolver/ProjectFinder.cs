@@ -46,7 +46,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             IEnumerable<Project> result = null;
             if (false == this._mapAssemblyReferenceToProject.TryGetValue(assemblyReference, out result))
             {
-                result = this._projects.Where(x => AssemblyNameFromFullName(assemblyReference).ToLowerInvariant().Equals(x.Name.ToLowerInvariant()))
+                result = this._projects.Where(x => AssemblyNameFromFullName(assemblyReference).Equals(x.Name, StringComparison.InvariantCultureIgnoreCase))
                                        .ToArray();
                 this._mapAssemblyReferenceToProject.Add(assemblyReference, result);
             }
@@ -70,7 +70,8 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         public IEnumerable<Project> GetProjectsOfSLN(string slnFilePath)
         {
-            return this._mapProjectToSLN.Where(x => x.Value.FullName.ToLowerInvariant().Equals(slnFilePath.ToLowerInvariant())).Select(x => x.Key);
+            return this._mapProjectToSLN.Where(x => x.Value.FullName.Equals(slnFilePath, StringComparison.InvariantCultureIgnoreCase))
+                                        .Select(x => x.Key);
         }
 
         public IEnumerable<Project> GetProjectsOfSLN(FileInfo slnFileInfo)
@@ -78,17 +79,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
             return this._mapProjectToSLN.Where(x => x.Value.Equals(slnFileInfo)).Select(x => x.Key);
         }
 
-
-        public string GetBuildPathForAssemblyReference(AssemblyReference assemblyReference)
-        {
-            var project = this.FindProjectForAssemblyReference(assemblyReference).Single();
-            if (false == project.DefaultConfiguration.HasValue)
-            {
-                throw new Exception(String.Format("Can't resolve build path from which to fetch assembly reference because the project that builds it has no default configuration (Project = {0}, AssemblyReference = {1})",
-                                                    project, assemblyReference));
-            }
-            return project.DefaultConfiguration.Value.OutputPath;
-        }
 
 
         private void MapSLNsToProjects()
@@ -101,7 +91,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 {
                     var quotedProjectFilePath = match.Value;
                     var projectFilePath = Project.ResolvePath(slnFileInfo.DirectoryName, quotedProjectFilePath.Substring(1, quotedProjectFilePath.Length - 2));
-                    var project = this._projects.Where(x => x.Path.ToLowerInvariant().Equals(projectFilePath.ToLowerInvariant())).SingleOrDefault();
+                    var project = this._projects.Where(x => x.Path.Equals(projectFilePath, StringComparison.InvariantCultureIgnoreCase)).SingleOrDefault();
                     if (false == project.Path.ToLowerInvariant().Contains(slnFileInfo.DirectoryName.ToLowerInvariant()))
                     {
                         Console.Error.WriteLine("WARNING: Skipping potential mapping to SLN file {0} because it is not in a parent directory of the project {1}", slnFileInfo.FullName, project.Path);
