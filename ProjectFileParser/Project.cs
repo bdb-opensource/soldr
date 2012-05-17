@@ -68,7 +68,7 @@ namespace BuildDependencyReader.ProjectFileParser
         /// <para><em>Note:</em> Project AND all dependencies (ie. referenced projects) must first be built for this to work.</para>
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<FileInfo> GetBuiltProjectOutputs()
+        public IEnumerable<FileInfo> GetBuiltProjectOutputs(bool includeDependencies = false)
         {
             if (_enumeratingProjectOutputs)
             {
@@ -78,7 +78,7 @@ namespace BuildDependencyReader.ProjectFileParser
             this._enumeratingProjectOutputs = true;
             try
             {
-                return GetBuiltProjectOutputsWithoutCyclicProtection().ToArray();
+                return GetBuiltProjectOutputsWithoutCyclicProtection(includeDependencies).ToArray();
             }
             finally
             {
@@ -90,7 +90,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         #region Protected Methods
 
-        private IEnumerable<FileInfo> GetBuiltProjectOutputsWithoutCyclicProtection()
+        private IEnumerable<FileInfo> GetBuiltProjectOutputsWithoutCyclicProtection(bool includeDependencies)
         {
             if (false == this.DefaultConfiguration.HasValue)
             {
@@ -98,19 +98,24 @@ namespace BuildDependencyReader.ProjectFileParser
                                                   this));
             }
             var directoryInfo = new DirectoryInfo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path), this.DefaultConfiguration.Value.OutputPath));
-            return directoryInfo.EnumerateFiles()
-                                .Where(f => (false == ExistsAssemblyReferenceWithName(f.Name))
-                                         && (false == ExistsReferencedProjectOutputWithName(f.Name)));
+            var outputs = directoryInfo.EnumerateFiles();
+            if (includeDependencies) {
+                return outputs;
+            }
+            return outputs.Where(f => (false == ExistsAssemblyReferenceWithName(f.Name))
+                                   && (false == ExistsReferencedProjectOutputWithName(f.Name)));
         }
 
         private bool ExistsReferencedProjectOutputWithName(string fileName)
         {
-            return this.ProjectReferences.SelectMany(p => p.GetBuiltProjectOutputs()).Any(pf => pf.Name.Equals(fileName, StringComparison.InvariantCultureIgnoreCase));
+            var deepProjectRefOutputs = this.ProjectReferences.SelectMany(p => p.GetBuiltProjectOutputs(true));
+            return deepProjectRefOutputs.Any(pf => pf.Name.Equals(fileName, StringComparison.InvariantCultureIgnoreCase));
         }
 
         private bool ExistsAssemblyReferenceWithName(string fileName)
         {
-            return this.AssemblyReferences.Any(a => a.Name.Equals(System.IO.Path.GetFileNameWithoutExtension(fileName), StringComparison.InvariantCultureIgnoreCase));
+            return this.AssemblyReferences.Select(AssemblyReference.AssemblyNameFromFullName)
+                                          .Any(name => name.Equals(System.IO.Path.GetFileNameWithoutExtension(fileName), StringComparison.InvariantCultureIgnoreCase));
         }
 
         protected static void ValidateFileExists(string filePath)

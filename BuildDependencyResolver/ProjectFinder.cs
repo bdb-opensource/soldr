@@ -46,17 +46,13 @@ namespace BuildDependencyReader.BuildDependencyResolver
             IEnumerable<Project> result = null;
             if (false == this._mapAssemblyReferenceToProject.TryGetValue(assemblyReference, out result))
             {
-                result = this._projects.Where(x => AssemblyNameFromFullName(assemblyReference).Equals(x.Name, StringComparison.InvariantCultureIgnoreCase))
+                result = this._projects.Where(x => AssemblyReference.AssemblyNameFromFullName(assemblyReference).Equals(x.Name, StringComparison.InvariantCultureIgnoreCase))
                                        .ToArray();
                 this._mapAssemblyReferenceToProject.Add(assemblyReference, result);
             }
             return result;
         }
 
-        private static string AssemblyNameFromFullName(AssemblyReference assemblyReference)
-        {
-            return assemblyReference.Name.Split(',').First();
-        }
 
         public FileInfo GetSLNFileForProject(Project project)
         {

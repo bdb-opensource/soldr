@@ -73,11 +73,10 @@ namespace BuildDependencyReader.PrintProjectDependencies
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
                 Console.WriteLine("Buildling: '{0}'", solutionFileName);
-                foreach (var project in projectFinder.GetProjectsOfSLN(solutionFileName))
-                {
-                    Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, project);
-                    //Console.Error.WriteLine("Project: " + project.ToString() + "\n\t" + String.Join("\n\t", project.GetBuiltProjectOutputs()));
-                }
+                Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, 
+                                                                projectFinder.GetProjectsOfSLN(solutionFileName)
+                                                                             .SelectMany(x => x.AssemblyReferences)
+                                                                             .Distinct());
                 MSBuild(solutionFileName);
                 Console.WriteLine("Done: '{0}'", solutionFileName);
             }

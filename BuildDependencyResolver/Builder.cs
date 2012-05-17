@@ -8,9 +8,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
 {
     public class Builder
     {
-        public static void CopyAssemblyReferencesFromBuiltProjects(IProjectFinder projectFinder, Project project)
+        public static void CopyAssemblyReferencesFromBuiltProjects(IProjectFinder projectFinder, IEnumerable<AssemblyReference> assemblyReferences)
         {
-            foreach (var assemblyReference in project.AssemblyReferences)
+            foreach (var assemblyReference in assemblyReferences)
             {
                 var buildingProject = projectFinder.FindProjectForAssemblyReference(assemblyReference).SingleOrDefault();
                 if (null == buildingProject)

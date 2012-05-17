@@ -35,6 +35,12 @@ namespace BuildDependencyReader.ProjectFileParser
         {
             return (this.HintPath ?? String.Empty).GetHashCode() + 13 * (this.Name ?? String.Empty).GetHashCode();
         }
+
+        // TODO: Find a system library function that does the same?
+        public static string AssemblyNameFromFullName(AssemblyReference assemblyReference)
+        {
+            return assemblyReference.Name.Split(',').First();
+        }
     }
 
 }
