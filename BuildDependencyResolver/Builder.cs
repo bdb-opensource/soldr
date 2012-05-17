@@ -33,7 +33,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
                 System.IO.File.Copy(source, target, true);
 
-                //Console.Error.WriteLine("Done.");
+                //_logger.InfoFormat("Done.");
             }
         }
     }

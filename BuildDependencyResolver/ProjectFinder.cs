@@ -10,6 +10,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
 {
     public class ProjectFinder : IProjectFinder
     {
+        protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
+                   System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private string _searchRootPath;
         private HashSet<FileInfo> _CSProjFileInfos;
         private HashSet<FileInfo> _SLNFileInfos;
@@ -90,7 +93,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     var project = this._projects.Where(x => x.Path.Equals(projectFilePath, StringComparison.InvariantCultureIgnoreCase)).SingleOrDefault();
                     if (false == project.Path.ToLowerInvariant().Contains(slnFileInfo.DirectoryName.ToLowerInvariant()))
                     {
-                        Console.Error.WriteLine("WARNING: Skipping potential mapping to SLN file {0} because it is not in a parent directory of the project {1}", slnFileInfo.FullName, project.Path);
+                        _logger.WarnFormat("WARNING: Skipping potential mapping to SLN file {0} because it is not in a parent directory of the project {1}", slnFileInfo.FullName, project.Path);
                         continue;
                     }
                     if (null != project)
@@ -116,7 +119,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
             var message = "Multiple projects with same name found - cannot realiably calculate assembly dependencies:\n"
                           + Tabify(collidingProjects.Select(CollidingProjectsDescriptionString));
-            Console.Error.WriteLine("WARNING: " + message);
+            _logger.WarnFormat("WARNING: " + message);
             if (false == allowAssemblyProjectAmbiguities)
             {
                 throw new ArgumentException(message);

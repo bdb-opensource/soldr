@@ -10,6 +10,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
 {
     public class BuildDependencyResolver
     {
+        protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
+                   System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public const string CSPROJ_EXTENSION = ".csproj";
         public const string SLN_EXTENSION = ".sln";
 
@@ -55,7 +58,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="_excludedSLNs">Solution (.sln) files that should be excluded from the final dependency graph - useful for temporarily ignoring cyclic dependencies. 
         /// Note that .sln files may appear in the final graph even if they are not given in the input files list, if something in the input depends on them.</param>
         /// <param name="basePath">Base path to start search for dependency .sln and .csproj files (used mainly for resolving assembly references)</param>
-        public static BuildDependencyInfo DependencyInfo(IProjectFinder projectFinder, IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs, bool verbose)
+        public static BuildDependencyInfo DependencyInfo(IProjectFinder projectFinder, IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs)
         {
             string[] projectFiles;
             string[] slnFiles;
@@ -71,14 +74,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
 
             var csprojProjects = projectFiles.Select(Project.FromCSProj);
-
             var slnProjects = slnFiles.SelectMany(projectFinder.GetProjectsOfSLN);
-
             var projects = csprojProjects.Union(slnProjects).ToArray();
-            if (verbose)
-            {
-                PrintInputInfo(excludedSLNs, projectFiles, slnFiles, projects);
-            }
+
+            PrintInputInfo(excludedSLNs, projectFiles, slnFiles, projects);
 
             return new BuildDependencyInfo(ProjectDependencyGraph(projectFinder, projects, false),
                                            SolutionDependencyGraph(projectFinder, projects, false), 
@@ -165,11 +164,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         private static void PrintInputInfo(string[] excludedSLNs, IEnumerable<string> projectFiles, IEnumerable<string> slnFiles, Project[] projects)
         {
-            Console.Error.WriteLine("Input CSPROJ files:\n\t" + String.Join("\n\t", projectFiles));
-            Console.Error.WriteLine("Input SLN files:\n\t" + String.Join("\n\t", slnFiles));
-            Console.Error.WriteLine("Input projects:\n\t" + String.Join("\n\t", projects.Select(x => x.Path)));
+            _logger.InfoFormat("Input CSPROJ files:\n\t" + String.Join("\n\t", projectFiles));
+            _logger.InfoFormat("Input SLN files:\n\t" + String.Join("\n\t", slnFiles));
+            _logger.InfoFormat("Input projects:\n\t" + String.Join("\n\t", projects.Select(x => x.Path)));
 
-            Console.Error.WriteLine("Excluding solutions:\n\t" + String.Join("\n\t", excludedSLNs));
+            _logger.InfoFormat("Excluding solutions:\n\t" + String.Join("\n\t", excludedSLNs));
         }
 
 

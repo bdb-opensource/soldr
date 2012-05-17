@@ -10,11 +10,17 @@ using QuickGraph;
 using QuickGraph.Algorithms;
 using QuickGraph.Graphviz;
 using Mono.Options;
+using log4net.Repository.Hierarchy;
+using log4net;
+using log4net.Core;
 
 namespace BuildDependencyReader.PrintProjectDependencies
 {
     class DotEngine : IDotEngine
     {
+        protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
+            System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public string Run(QuickGraph.Graphviz.Dot.GraphvizImageType imageType, string dot, string outputFileName)
         {
             var tempFileName = System.IO.Path.GetTempFileName();
@@ -30,59 +36,98 @@ namespace BuildDependencyReader.PrintProjectDependencies
             processStartInfo.WorkingDirectory = System.Environment.CurrentDirectory;
 
             Process process = Process.Start(processStartInfo);
-            Console.Error.Write(process.StandardError.ReadToEnd());
-            Console.Out.Write(process.StandardOutput.ReadToEnd());
+            _logger.Info(process.StandardError.ReadToEnd());
+            _logger.Info(process.StandardOutput.ReadToEnd());
             return outputFileName;
         }
     }
 
+    class OptionValues
+    {
+        public string BasePath;
+        public bool GenerateGraphviz;
+        public bool Verbose;
+        public bool PrintSolutionBuildOrder;
+        public bool Build;
+    }
+
     class Program
     {
+        protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
+            System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         static int Main(string[] args)
         {
+            log4net.Config.XmlConfigurator.Configure();
+
             var exlcudedSlns = new List<string>();
             var inputFiles = new List<string>();
-            bool verbose = false;
-            bool generateGraphviz = false;
-            string basePath;
-            if (false == ParseOptions(args, exlcudedSlns, inputFiles, out basePath, out verbose, out generateGraphviz))
+            var optionValues = new OptionValues();
+
+            if (false == ParseOptions(args, exlcudedSlns, inputFiles, optionValues))
             {
                 return 1;
             }
 
-            PrintProjectDependencies(inputFiles, exlcudedSlns, basePath, verbose, generateGraphviz);
+            UpdateLog4NetLevel(optionValues.Verbose);
 
-            return 0;
-        }
+            var projectFinder = new ProjectFinder(optionValues.BasePath, true);
+            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.DependencyInfo(projectFinder, inputFiles, exlcudedSlns);
 
-        private static void PrintProjectDependencies(IEnumerable<string> _inputFiles, IEnumerable<string> _excludedSLNs, string basePath, bool verbose, bool generateGraphviz)
-        {
-            var projectFinder = new ProjectFinder(basePath, true);
-            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.DependencyInfo(projectFinder, _inputFiles, _excludedSLNs, verbose);
-
-            if (generateGraphviz)
+            if (optionValues.GenerateGraphviz)
             {
                 GenerateGraphViz(dependencyInfo.SolutionDependencyGraph);
             }
 
-            foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
+            if (optionValues.PrintSolutionBuildOrder)
             {
-                Console.WriteLine(solutionFileName);
+                PrintSolutionBuildOrder(dependencyInfo);
             }
 
+            if (optionValues.Build)
+            {
+                PerformBuild(projectFinder, dependencyInfo);
+            }
+
+            return 0;
+        }
+
+        private static void UpdateLog4NetLevel(bool verbose)
+        {
+            Level level = verbose ? log4net.Core.Level.Trace
+                                  : log4net.Core.Level.Warn;
+            foreach (var repo in LogManager.GetAllRepositories())
+            {
+                foreach (var logger in repo.GetCurrentLoggers().OfType<Logger>())
+                {
+                    logger.Level = level;
+                }
+            }
+        }
+
+        private static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
+        {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Console.WriteLine("Building Solution: '{0}'", solutionFileName);
-                Console.WriteLine("\tCopying dependencies...");
-                Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, 
+                _logger.InfoFormat(solutionFileName);
+            }
+        }
+
+        private static void PerformBuild(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo)
+        {
+            foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
+            {
+                _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
+                _logger.InfoFormat("\tCopying dependencies...");
+                Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder,
                                                                 projectFinder.GetProjectsOfSLN(solutionFileName)
                                                                              .SelectMany(x => x.AssemblyReferences)
                                                                              .Distinct());
-                Console.WriteLine("\tCleaning...");
+                _logger.InfoFormat("\tCleaning...");
                 MSBuild(solutionFileName, "/t:clean");
-                Console.WriteLine("\tBuilding...");
+                _logger.InfoFormat("\tBuilding...");
                 MSBuild(solutionFileName);
-                Console.WriteLine("\tDone: '{0}'", solutionFileName);
+                _logger.InfoFormat("\tDone: '{0}'", solutionFileName);
             }
         }
 
@@ -96,8 +141,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.RedirectStandardOutput = true;
             process.Start();
-            Console.Error.Write(process.StandardOutput.ReadToEnd());
-            Console.Error.Write(process.StandardError.ReadToEnd());
+            _logger.InfoFormat(process.StandardOutput.ReadToEnd());
+            _logger.InfoFormat(process.StandardError.ReadToEnd());
             process.WaitForExit();
             if (0 != process.ExitCode)
             {
@@ -115,35 +160,40 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             var fileName = System.IO.Path.GetTempFileName() + ".svg";
             var outFileName = graphviz.Generate(new DotEngine(), fileName);
-            Console.Error.WriteLine("GraphViz Output to: " + fileName);
+            _logger.InfoFormat("GraphViz Output to: " + fileName);
         }
 
         
 
-        private static bool ParseOptions(string[] args, List<string> exlcudedSlns, List<string> inputFiles, out string basePath, out bool verbose, out bool generateGraphviz)
+        private static bool ParseOptions(string[] args, List<string> exlcudedSlns, List<string> inputFiles, OptionValues optionValues)
         {
             bool userRequestsHelp = false;
 
-            string _basePath = null;
-            bool _verbose = false;
-            bool _generateGraphviz = false;
-            basePath = null;
-            verbose = false;
-            generateGraphviz = false;
+            optionValues.BasePath = null;
+            optionValues.Verbose = false;
+            optionValues.GenerateGraphviz = false;
+            optionValues.Build = false;
+            optionValues.PrintSolutionBuildOrder = false;
 
             var options = new OptionSet();
-            options.Add("b|basePath=",
+            options.Add("b|base-path=",
                         "base path for searching for sln / csproj files",
-                        x => _basePath = x);
+                        x => optionValues.BasePath = x);
+            options.Add("c|compile",
+                        "compile (using msbuild) the inputs using the calculated dependency order",
+                        x => optionValues.Build = (null != x));
+            options.Add("p|print-slns",
+                        "print the .sln files of all dependencies in the calculated dependency order",
+                        x => optionValues.PrintSolutionBuildOrder = (null != x));
             options.Add("x|exclude=", 
                         "exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
                         x => exlcudedSlns.Add(x));
             options.Add("v|verbose",
                         "print verbose output (will go to stderr)",
-                        x => _verbose = (null != x));
+                        x => optionValues.Verbose = (null != x));
             options.Add("g|graphviz",
                         "generate graphviz output",
-                        x => _generateGraphviz = (null != x));
+                        x => optionValues.GenerateGraphviz = (null != x));
             options.Add("h|help", 
                         "show help", 
                         x => userRequestsHelp = (null != x));
@@ -157,14 +207,11 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 errorMessage = e.Message;
             }
-            basePath = _basePath;
-            verbose = _verbose;
-            generateGraphviz = _generateGraphviz;
 
-            return ValidateOptions(basePath, userRequestsHelp, options, errorMessage);
+            return ValidateOptions(optionValues, userRequestsHelp, options, errorMessage);
         }
 
-        private static bool ValidateOptions(string basePath, bool userRequestsHelp, OptionSet options, string errorMessage)
+        private static bool ValidateOptions(OptionValues optionValues, bool userRequestsHelp, OptionSet options, string errorMessage)
         {
             string message = null;
             if (null != errorMessage)
@@ -175,13 +222,13 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 message = "Showing Help";
             }
-            else if (String.IsNullOrWhiteSpace(basePath))
+            else if (String.IsNullOrWhiteSpace(optionValues.BasePath))
             {
                 message = "Missing base path";
             }
-            else if (false == System.IO.Directory.Exists(basePath))
+            else if (false == System.IO.Directory.Exists(optionValues.BasePath))
             {
-                message = "Base path does not exist: '" + basePath + "'";
+                message = "Base path does not exist: '" + optionValues.BasePath + "'";
             }
 
             if (null != message)
