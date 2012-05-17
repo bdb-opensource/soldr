@@ -65,10 +65,36 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 GenerateGraphViz(dependencyInfo.SolutionDependencyGraph);
             }
 
-            foreach (var project in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
+            foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Console.WriteLine(project);
+                Console.WriteLine(solutionFileName);
             }
+
+            foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
+            {
+                Console.WriteLine("Buildling: '{0}'", solutionFileName);
+                MSBuild(solutionFileName);
+
+                foreach (var project in projectFinder.GetProjectsOfSLN(solutionFileName))
+                {
+                    Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, project);
+                    //Console.Error.WriteLine("Project: " + project.ToString() + "\n\t" + String.Join("\n\t", project.GetBuiltProjectOutputs()));
+                }
+            }
+        }
+
+        private static void MSBuild(string solutionFileName)
+        {
+            var process = new Process();
+            process.StartInfo.CreateNoWindow = true;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.FileName = @"C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe";
+            process.StartInfo.Arguments = String.Format("/nologo /v:quiet \"{0}\"", solutionFileName);
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.Start();
+            Console.Error.Write(process.StandardOutput.ReadToEnd());
+            Console.Error.Write(process.StandardError.ReadToEnd());
         }
 
         private static void GenerateGraphViz(AdjacencyGraph<string, SEdge<string>> graph)

@@ -97,7 +97,7 @@ namespace BuildDependencyReader.ProjectFileParser
                 throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the project no default configuration (Project = {0})",
                                                   this));
             }
-            var directoryInfo = new DirectoryInfo(this.DefaultConfiguration.Value.OutputPath);
+            var directoryInfo = new DirectoryInfo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path), this.DefaultConfiguration.Value.OutputPath));
             return directoryInfo.EnumerateFiles()
                                 .Where(f => (false == ExistsAssemblyReferenceWithName(f.Name))
                                          && (false == ExistsReferencedProjectOutputWithName(f.Name)));
@@ -110,7 +110,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         private bool ExistsAssemblyReferenceWithName(string fileName)
         {
-            return this.AssemblyReferences.Any(a => System.IO.Path.GetFileName(a.HintPath).Equals(fileName, StringComparison.InvariantCultureIgnoreCase));
+            return this.AssemblyReferences.Any(a => a.Name.Equals(System.IO.Path.GetFileNameWithoutExtension(fileName), StringComparison.InvariantCultureIgnoreCase));
         }
 
         protected static void ValidateFileExists(string filePath)
