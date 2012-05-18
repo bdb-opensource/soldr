@@ -85,12 +85,12 @@ namespace BuildDependencyReader.BuildDependencyResolver
                                            excludedSLNs);
         }
 
-        private static IEnumerable<Project> GetAllProjectsInSolutionsOfProject(IProjectFinder projectFinder, Project project)
+        protected static IEnumerable<Project> GetAllProjectsInSolutionsOfProject(IProjectFinder projectFinder, Project project)
         {
             return projectFinder.GetProjectsOfSLN(projectFinder.GetSLNFileForProject(project));
         }
 
-        private static KeyValuePair<string, string> ProjectEdgeToSLNEdge(IProjectFinder projectFinder, KeyValuePair<Project, Project> x)
+        protected static KeyValuePair<string, string> ProjectEdgeToSLNEdge(IProjectFinder projectFinder, KeyValuePair<Project, Project> x)
         {
             return new KeyValuePair<String, String>(projectFinder.GetSLNFileForProject(x.Key).FullName,
                                                     projectFinder.GetSLNFileForProject(x.Value).FullName);
@@ -141,7 +141,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
         }
 
-        private static void ProcessInputFiles(IEnumerable<string> inputFiles, out string[] projectFiles, out string[] slnFiles)
+        protected static void ProcessInputFiles(IEnumerable<string> inputFiles, out string[] projectFiles, out string[] slnFiles)
         {
             slnFiles = new string[] { };
             projectFiles = new string[] { };
@@ -163,7 +163,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
         }
 
-        private static void PrintInputInfo(string[] excludedSLNs, IEnumerable<string> projectFiles, IEnumerable<string> slnFiles, Project[] projects)
+        protected static void PrintInputInfo(string[] excludedSLNs, IEnumerable<string> projectFiles, IEnumerable<string> slnFiles, Project[] projects)
         {
             _logger.InfoFormat("Input CSPROJ files:\n" + StringExtensions.Tabify(projectFiles));
             _logger.InfoFormat("Input SLN files:\n" + StringExtensions.Tabify(slnFiles));
@@ -174,7 +174,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
 
 
-        private static string CanonicalPath(string x)
+        protected static string CanonicalPath(string x)
         {
             return System.IO.Path.GetFullPath(x.Trim());
         }

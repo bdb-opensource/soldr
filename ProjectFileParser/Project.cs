@@ -5,12 +5,15 @@ using System.Xml.Linq;
 using System.Text;
 using System.IO;
 using System.Text.RegularExpressions;
+using Common;
 
 namespace BuildDependencyReader.ProjectFileParser
 {
     public class Project
     {
         #region Constants
+        protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
+           System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         protected static readonly XNamespace CSProjNamespace = "http://schemas.microsoft.com/developer/msbuild/2003";
         // Thanks to http://regexhero.net/tester/
@@ -62,13 +65,24 @@ namespace BuildDependencyReader.ProjectFileParser
                    : System.IO.Path.GetFullPath(System.IO.Path.Combine(basePath, pathToResolve));
         }
 
+        public IEnumerable<FileInfo> GetBuiltProjectOutputs()
+        {
+            var outputs = this.GetBuiltProjectOutputs(false);
+            this.LogUnexpectedOutputs(outputs);
+            return outputs;
+        }
+
+        #endregion
+
+        #region Protected Methods
+
         protected bool _enumeratingProjectOutputs = false;
         /// <summary>
         /// Returns the set of files that seems to have been created when this project was built.
         /// <para><em>Note:</em> Project AND all dependencies (ie. referenced projects) must first be built for this to work.</para>
         /// </summary>
         /// <returns></returns>
-        public IEnumerable<FileInfo> GetBuiltProjectOutputs(bool includeDependencies = false)
+        protected IEnumerable<FileInfo> GetBuiltProjectOutputs(bool includeDependencies)
         {
             if (_enumeratingProjectOutputs)
             {
@@ -86,11 +100,16 @@ namespace BuildDependencyReader.ProjectFileParser
             }
         }
 
-        #endregion
+        private void LogUnexpectedOutputs(IEnumerable<FileInfo> outputs)
+        {
+            var outputsWithUnexpectedNames = outputs.Select(x => x.Name).Where(x => false == x.StartsWith(this.Name)).ToArray();
+            if (outputsWithUnexpectedNames.Any())
+            {
+                _logger.WarnFormat("Project has unexpected outputs {0}:\n{1}", this.ToString(), StringExtensions.Tabify(outputsWithUnexpectedNames));
+            }
+        }
 
-        #region Protected Methods
-
-        private IEnumerable<FileInfo> GetBuiltProjectOutputsWithoutCyclicProtection(bool includeDependencies)
+        protected IEnumerable<FileInfo> GetBuiltProjectOutputsWithoutCyclicProtection(bool includeDependencies)
         {
             if (false == this.DefaultConfiguration.HasValue)
             {
@@ -106,13 +125,13 @@ namespace BuildDependencyReader.ProjectFileParser
                                    && (false == ExistsReferencedProjectOutputWithName(f.Name)));
         }
 
-        private bool ExistsReferencedProjectOutputWithName(string fileName)
+        protected bool ExistsReferencedProjectOutputWithName(string fileName)
         {
             var deepProjectRefOutputs = this.ProjectReferences.SelectMany(p => p.GetBuiltProjectOutputs(true));
             return deepProjectRefOutputs.Any(pf => pf.Name.Equals(fileName, StringComparison.InvariantCultureIgnoreCase));
         }
 
-        private bool ExistsAssemblyReferenceWithName(string fileName)
+        protected bool ExistsAssemblyReferenceWithName(string fileName)
         {
             return this.AssemblyReferences.Select(AssemblyReference.AssemblyNameFromFullName)
                                           .Any(name => name.Equals(System.IO.Path.GetFileNameWithoutExtension(fileName), StringComparison.InvariantCultureIgnoreCase));
@@ -166,7 +185,7 @@ namespace BuildDependencyReader.ProjectFileParser
             }
         }
 
-        private static Nullable<ProjectConfiguration> FindDefaultConfiguration(Project project, XDocument document)
+        protected static Nullable<ProjectConfiguration> FindDefaultConfiguration(Project project, XDocument document)
         {
             var defaultConfigurationElement = document.Descendants(CSProjNamespace + "Configuration").SingleOrDefault();
             if (null == defaultConfigurationElement)

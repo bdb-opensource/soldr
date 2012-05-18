@@ -14,14 +14,14 @@ namespace BuildDependencyReader.BuildDependencyResolver
         protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
                    System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        private string _searchRootPath;
-        private HashSet<FileInfo> _CSProjFileInfos;
-        private HashSet<FileInfo> _SLNFileInfos;
-        private Project[] _projects;
-        private Dictionary<Project, FileInfo> _mapProjectToSLN = new Dictionary<Project, FileInfo>();
-        private Dictionary<AssemblyReference, IEnumerable<Project>> _mapAssemblyReferenceToProject;
+        protected string _searchRootPath;
+        protected HashSet<FileInfo> _CSProjFileInfos;
+        protected HashSet<FileInfo> _SLNFileInfos;
+        protected Project[] _projects;
+        protected Dictionary<Project, FileInfo> _mapProjectToSLN = new Dictionary<Project, FileInfo>();
+        protected Dictionary<AssemblyReference, IEnumerable<Project>> _mapAssemblyReferenceToProject;
 
-        private static readonly Regex csProjInSLNRegex = new Regex(@"""[^""]*\.csproj""", RegexOptions.IgnoreCase);
+        protected static readonly Regex csProjInSLNRegex = new Regex(@"""[^""]*\.csproj""", RegexOptions.IgnoreCase);
 
         public ProjectFinder(string searchRootPath, bool allowAssemblyProjectAmbiguities)
         {
@@ -81,7 +81,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
 
 
-        private void MapSLNsToProjects()
+        protected void MapSLNsToProjects()
         {
             foreach (var slnFileInfo in this._SLNFileInfos)
             {
@@ -109,7 +109,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
         }
 
-        private void CheckForAssemblyProjectAmbiguities(bool allowAssemblyProjectAmbiguities)
+        protected void CheckForAssemblyProjectAmbiguities(bool allowAssemblyProjectAmbiguities)
         {
             var collidingProjects = this._projects.GroupBy(x => x.Name.ToLowerInvariant().Trim())
                                                   .Where(x => x.Count() > 1)
@@ -127,12 +127,12 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
         }
 
-        private static string CollidingProjectsDescriptionString(IGrouping<string, Project> group)
+        protected static string CollidingProjectsDescriptionString(IGrouping<string, Project> group)
         {
             return String.Format("{0}:\n{1}", group.Key, StringExtensions.Tabify(group.Select(y => y.Path)));
         }
 
-        private static void ValidateDirectoryExists(string searchRootPath)
+        protected static void ValidateDirectoryExists(string searchRootPath)
         {
             if (false == System.IO.Directory.Exists(searchRootPath))
             {

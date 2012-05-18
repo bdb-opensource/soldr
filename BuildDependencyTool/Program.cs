@@ -93,75 +93,31 @@ namespace BuildDependencyReader.PrintProjectDependencies
             return 0;
         }
 
-        private static void UpdateLog4NetLevel(bool verbose)
+        protected static void UpdateLog4NetLevel(bool verbose)
         {
             Level level = verbose ? log4net.Core.Level.Trace
                                   : log4net.Core.Level.Warn;
             log4net.LogManager.GetRepository().Threshold = level;
         }
 
-        private static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
+        protected static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
         {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                _logger.InfoFormat(solutionFileName);
+                Console.WriteLine(solutionFileName);
             }
         }
 
-        private static void PerformBuild(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo)
+        protected static void PerformBuild(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo)
         {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
-                _logger.InfoFormat("\tCopying dependencies...");
-                Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder,
-                                                                projectFinder.GetProjectsOfSLN(solutionFileName)
-                                                                             .SelectMany(x => x.AssemblyReferences)
-                                                                             .Distinct());
-                _logger.InfoFormat("\tCleaning...");
-                MSBuild(solutionFileName, "/t:clean");
-                _logger.InfoFormat("\tBuilding...");
-                MSBuild(solutionFileName);
-                _logger.InfoFormat("\tDone: '{0}'", solutionFileName);
+                Builder.BuildSolution(projectFinder, solutionFileName);  
             }
         }
 
-        private static void MSBuild(string solutionFileName, string args = "")
-        {
-            var process = new Process();
-            process.StartInfo.CreateNoWindow = true;
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.FileName = @"C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe";
-            process.StartInfo.Arguments = String.Format("/nologo /v:quiet \"{0}\" {1}", solutionFileName, args);
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.Start();
-            
-            // Must read process outputs before calling WaitForExit to prevent deadlocks
-            LogWarnProcessOutputs(process);
 
-            process.WaitForExit();
-            if (0 != process.ExitCode)
-            {
-                throw new Exception("Build failed: " + solutionFileName);
-            }
-        }
-
-        private static void LogWarnProcessOutputs(Process process)
-        {
-            var processStdOut = process.StandardOutput.ReadToEnd().Trim();
-            if (processStdOut.Any())
-            {
-                _logger.WarnFormat("'{0} {1}': stdout:\n{2}", process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdOut));
-            }
-            var processStdErr = process.StandardError.ReadToEnd().Trim();
-            if (processStdErr.Any())
-            {
-                _logger.WarnFormat("'{0} {1}': stderr:\n{2}", process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdErr));
-            }
-        }
-
-        private static void GenerateGraphViz(AdjacencyGraph<string, SEdge<string>> graph)
+        protected static void GenerateGraphViz(AdjacencyGraph<string, SEdge<string>> graph)
         {
             var graphviz = new GraphvizAlgorithm<String, SEdge<String>>(graph, "graph", QuickGraph.Graphviz.Dot.GraphvizImageType.Svg);
             graphviz.GraphFormat.RankSeparation = 2;
@@ -176,7 +132,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
         
 
-        private static bool ParseOptions(string[] args, List<string> exlcudedSlns, List<string> inputFiles, OptionValues optionValues)
+        protected static bool ParseOptions(string[] args, List<string> exlcudedSlns, List<string> inputFiles, OptionValues optionValues)
         {
             bool userRequestsHelp = false;
 
@@ -222,7 +178,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             return ValidateOptions(optionValues, userRequestsHelp, options, errorMessage);
         }
 
-        private static bool ValidateOptions(OptionValues optionValues, bool userRequestsHelp, OptionSet options, string errorMessage)
+        protected static bool ValidateOptions(OptionValues optionValues, bool userRequestsHelp, OptionSet options, string errorMessage)
         {
             string message = null;
             if (null != errorMessage)
@@ -250,7 +206,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             return true;
         }
 
-        private static void ShowHelp(string message, OptionSet options)
+        protected static void ShowHelp(string message, OptionSet options)
         {
             Console.Error.WriteLine(Process.GetCurrentProcess().ProcessName + ": " + message);
             options.WriteOptionDescriptions(Console.Error);
