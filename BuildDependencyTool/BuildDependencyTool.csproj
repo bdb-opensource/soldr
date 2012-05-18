@@ -67,6 +67,10 @@
       <Project>{6F088EA1-CD79-4A45-AD8B-9B4A1313034D}</Project>
       <Name>BuildDependencyResolver</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Common\Common.csproj">
+      <Project>{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}</Project>
+      <Name>Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\ProjectFileParser\ProjectFileParser.csproj">
       <Project>{EAEE0200-AB00-4CF2-B069-9FD2FB685944}</Project>
       <Name>ProjectFileParser</Name>

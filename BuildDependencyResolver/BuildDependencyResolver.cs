@@ -5,6 +5,7 @@ using System.Text;
 using BuildDependencyReader.ProjectFileParser;
 using QuickGraph;
 using QuickGraph.Algorithms;
+using Common;
 
 namespace BuildDependencyReader.BuildDependencyResolver
 {
@@ -164,11 +165,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         private static void PrintInputInfo(string[] excludedSLNs, IEnumerable<string> projectFiles, IEnumerable<string> slnFiles, Project[] projects)
         {
-            _logger.InfoFormat("Input CSPROJ files:\n\t" + String.Join("\n\t", projectFiles));
-            _logger.InfoFormat("Input SLN files:\n\t" + String.Join("\n\t", slnFiles));
-            _logger.InfoFormat("Input projects:\n\t" + String.Join("\n\t", projects.Select(x => x.Path)));
+            _logger.InfoFormat("Input CSPROJ files:\n" + StringExtensions.Tabify(projectFiles));
+            _logger.InfoFormat("Input SLN files:\n" + StringExtensions.Tabify(slnFiles));
+            _logger.InfoFormat("Input projects:\n" + StringExtensions.Tabify(projects.Select(x => x.Path)));
 
-            _logger.InfoFormat("Excluding solutions:\n\t" + String.Join("\n\t", excludedSLNs));
+            _logger.InfoFormat("Excluding solutions:\n" + StringExtensions.Tabify(excludedSLNs));
         }
 
 

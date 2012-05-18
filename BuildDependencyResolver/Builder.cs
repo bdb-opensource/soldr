@@ -8,6 +8,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
 {
     public class Builder
     {
+        protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
+            System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
+
         public static void CopyAssemblyReferencesFromBuiltProjects(IProjectFinder projectFinder, IEnumerable<AssemblyReference> assemblyReferences)
         {
             foreach (var assemblyReference in assemblyReferences)
@@ -29,11 +33,13 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 var source = projectOutput.FullName;
                 var target = System.IO.Path.Combine(targetPath, projectOutput.Name);
 
-                //Console.Error.Write(String.Format("copying {0} -> {1}...", source, target));
+                _logger.InfoFormat("copying {0} -> {1}...", source, target);
 
+                if (false == projectOutput.Name.StartsWith(project.Name))
+                {
+                    _logger.WarnFormat("Project with name '{0}' has unexpected output '{1}' (project = {2})", project.Name, source, project);
+                }
                 System.IO.File.Copy(source, target, true);
-
-                //_logger.InfoFormat("Done.");
             }
         }
     }

@@ -13,6 +13,7 @@ using Mono.Options;
 using log4net.Repository.Hierarchy;
 using log4net;
 using log4net.Core;
+using Common;
 
 namespace BuildDependencyReader.PrintProjectDependencies
 {
@@ -96,13 +97,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         {
             Level level = verbose ? log4net.Core.Level.Trace
                                   : log4net.Core.Level.Warn;
-            foreach (var repo in LogManager.GetAllRepositories())
-            {
-                foreach (var logger in repo.GetCurrentLoggers().OfType<Logger>())
-                {
-                    logger.Level = level;
-                }
-            }
+            log4net.LogManager.GetRepository().Threshold = level;
         }
 
         private static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
@@ -141,12 +136,28 @@ namespace BuildDependencyReader.PrintProjectDependencies
             process.StartInfo.RedirectStandardError = true;
             process.StartInfo.RedirectStandardOutput = true;
             process.Start();
-            _logger.InfoFormat(process.StandardOutput.ReadToEnd());
-            _logger.InfoFormat(process.StandardError.ReadToEnd());
+            
+            // Must read process outputs before calling WaitForExit to prevent deadlocks
+            LogWarnProcessOutputs(process);
+
             process.WaitForExit();
             if (0 != process.ExitCode)
             {
                 throw new Exception("Build failed: " + solutionFileName);
+            }
+        }
+
+        private static void LogWarnProcessOutputs(Process process)
+        {
+            var processStdOut = process.StandardOutput.ReadToEnd().Trim();
+            if (processStdOut.Any())
+            {
+                _logger.WarnFormat("'{0} {1}': stdout:\n{2}", process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdOut));
+            }
+            var processStdErr = process.StandardError.ReadToEnd().Trim();
+            if (processStdErr.Any())
+            {
+                _logger.WarnFormat("'{0} {1}': stderr:\n{2}", process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdErr));
             }
         }
 

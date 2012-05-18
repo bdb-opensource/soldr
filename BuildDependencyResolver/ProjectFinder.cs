@@ -5,6 +5,7 @@ using System.Text;
 using BuildDependencyReader.ProjectFileParser;
 using System.IO;
 using System.Text.RegularExpressions;
+using Common;
 
 namespace BuildDependencyReader.BuildDependencyResolver
 {
@@ -93,7 +94,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     var project = this._projects.Where(x => x.Path.Equals(projectFilePath, StringComparison.InvariantCultureIgnoreCase)).SingleOrDefault();
                     if (false == project.Path.ToLowerInvariant().Contains(slnFileInfo.DirectoryName.ToLowerInvariant()))
                     {
-                        _logger.WarnFormat("WARNING: Skipping potential mapping to SLN file {0} because it is not in a parent directory of the project {1}", slnFileInfo.FullName, project.Path);
+                        _logger.WarnFormat("Skipping potential mapping to SLN file {0} because it is not in a parent directory of the project {1}", slnFileInfo.FullName, project.Path);
                         continue;
                     }
                     if (null != project)
@@ -118,22 +119,17 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 return;
             }
             var message = "Multiple projects with same name found - cannot realiably calculate assembly dependencies:\n"
-                          + Tabify(collidingProjects.Select(CollidingProjectsDescriptionString));
-            _logger.WarnFormat("WARNING: " + message);
+                          + StringExtensions.Tabify(collidingProjects.Select(CollidingProjectsDescriptionString));
+            _logger.WarnFormat("" + message);
             if (false == allowAssemblyProjectAmbiguities)
             {
                 throw new ArgumentException(message);
             }
         }
 
-        private static string Tabify(IEnumerable<string> strings)
-        {
-            return "\t" + String.Join("\n\t", strings.SelectMany(x => x.Split('\n')));
-        }
-
         private static string CollidingProjectsDescriptionString(IGrouping<string, Project> group)
         {
-            return String.Format("{0}:\n{1}", group.Key, Tabify(group.Select(y => y.Path)));
+            return String.Format("{0}:\n{1}", group.Key, StringExtensions.Tabify(group.Select(y => y.Path)));
         }
 
         private static void ValidateDirectoryExists(string searchRootPath)
