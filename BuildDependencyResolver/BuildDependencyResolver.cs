@@ -18,9 +18,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
         public const string SLN_EXTENSION = ".sln";
 
 
-        public static IEnumerable<Project> BuildOrder(IProjectFinder projectFinder, IEnumerable<Project> projects)
+        public static IEnumerable<Project> BuildOrder(IProjectFinder projectFinder, IEnumerable<Project> projects, int maxRecursionLevel)
         {
-            return ProjectDependencyGraph(projectFinder, projects, true).TopologicalSort();
+            return ProjectDependencyGraph(projectFinder, projects, true, maxRecursionLevel).TopologicalSort();
         }
 
         /// <summary>
@@ -32,18 +32,18 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="projects"></param>
         /// <param name="direction"></param>
         /// <returns></returns>
-        public static AdjacencyGraph<Project, SEdge<Project>> ProjectDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse)
+        public static AdjacencyGraph<Project, SEdge<Project>> ProjectDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse, int maxRecursionLevel)
         {
-            return DeepDependencies(projectFinder, projects, false)
+            return DeepDependencies(projectFinder, projects, false, maxRecursionLevel)
                     .Distinct()
                     .Select(x => new SEdge<Project>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
                     .ToAdjacencyGraph<Project, SEdge<Project>>(false);
         }
 
 
-        public static AdjacencyGraph<String, SEdge<String>> SolutionDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse)
+        public static AdjacencyGraph<String, SEdge<String>> SolutionDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse, int maxRecursionLevel)
         {
-            return DeepDependencies(projectFinder, projects, true)
+            return DeepDependencies(projectFinder, projects, true, maxRecursionLevel)
                     .Where(x => x.Key != x.Value)
                     .Select(x => ProjectEdgeToSLNEdge(projectFinder, x))
                     .Where(x => false == x.Key.ToLowerInvariant().Equals(x.Value.ToLowerInvariant()))
@@ -59,7 +59,8 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="_excludedSLNs">Solution (.sln) files that should be excluded from the final dependency graph - useful for temporarily ignoring cyclic dependencies. 
         /// Note that .sln files may appear in the final graph even if they are not given in the input files list, if something in the input depends on them.</param>
         /// <param name="basePath">Base path to start search for dependency .sln and .csproj files (used mainly for resolving assembly references)</param>
-        public static BuildDependencyInfo DependencyInfo(IProjectFinder projectFinder, IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs)
+        /// <param name="maxRecursionLevel">How deep to resolve dependencies of the given inputs. 0 means no dependency resolution is performed. -1 means infinity.</param>
+        public static BuildDependencyInfo GetDependencyInfo(IProjectFinder projectFinder, IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs, int maxRecursionLevel)
         {
             string[] projectFiles;
             string[] slnFiles;
@@ -80,8 +81,8 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
             PrintInputInfo(excludedSLNs, projectFiles, slnFiles, projects);
 
-            return new BuildDependencyInfo(ProjectDependencyGraph(projectFinder, projects, false),
-                                           SolutionDependencyGraph(projectFinder, projects, false), 
+            return new BuildDependencyInfo(ProjectDependencyGraph(projectFinder, projects, false, maxRecursionLevel),
+                                           SolutionDependencyGraph(projectFinder, projects, false, maxRecursionLevel), 
                                            excludedSLNs);
         }
 
@@ -96,21 +97,43 @@ namespace BuildDependencyReader.BuildDependencyResolver
                                                     projectFinder.GetSLNFileForProject(x.Value).FullName);
         }
 
-
-        public static IEnumerable<KeyValuePair<Project, Project>> DeepDependencies(IProjectFinder projectFinder, IEnumerable<Project> projects, bool includeAllProjectsInSolution)
+        protected struct ResolvedProjectDependencyInfo
         {
-            var projectsToTraverse = new Queue<KeyValuePair<Project, Project>>(projects.Select(x => new KeyValuePair<Project, Project>(x, x)));
+            public readonly int RecursionLevel;
+            public readonly Project Source;
+            public readonly Project Target;
+            public ResolvedProjectDependencyInfo(int _recursionLevel, Project _source, Project _target)
+            {
+                this.RecursionLevel = _recursionLevel;
+                this.Source = _source;
+                this.Target = _target;
+            }
+        }
+
+        /// <summary>
+        /// Finds all pairs of dependencies source -> target of projects that depend on each other.
+        /// </summary>
+        /// <param name="maxRecursionLevel">How deep to resolve dependencies of the given inputs. 0 means no dependency resolution is performed. -1 means infinity.</param>
+        /// <returns></returns>
+        public static IEnumerable<KeyValuePair<Project, Project>> DeepDependencies(IProjectFinder projectFinder, IEnumerable<Project> projects, bool includeAllProjectsInSolution, int maxRecursionLevel)
+        {
+            var projectsToTraverse = new Queue<ResolvedProjectDependencyInfo>(projects.Select(x => new ResolvedProjectDependencyInfo(0, x, x)));
 
             var traversedProjects = new HashSet<Project>();
 
             while (projectsToTraverse.Any())
             {
                 var projectPair = projectsToTraverse.Dequeue();
-                var project = projectPair.Value;
+                var project = projectPair.Target;
 
-                if (projectPair.Key != projectPair.Value)
+                if (projectPair.Source != projectPair.Target)
                 {
-                    yield return projectPair;
+                    yield return new KeyValuePair<Project, Project>(projectPair.Source, projectPair.Target);
+                }
+
+                if ((0 <= maxRecursionLevel) && (projectPair.RecursionLevel > maxRecursionLevel))
+                {
+                    continue;
                 }
 
                 if (traversedProjects.Contains(project))
@@ -124,18 +147,18 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     foreach (var projectInSameSolution in GetAllProjectsInSolutionsOfProject(projectFinder, project)
                                                             .Where(x => false == traversedProjects.Contains(x)))
                     {
-                        projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(projectInSameSolution, projectInSameSolution));
+                        projectsToTraverse.Enqueue(new ResolvedProjectDependencyInfo(projectPair.RecursionLevel + 1, projectInSameSolution, projectInSameSolution));
                     }
                 }
                 foreach (var subProject in project.ProjectReferences)
                 {
-                    projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(project, subProject));
+                    projectsToTraverse.Enqueue(new ResolvedProjectDependencyInfo(projectPair.RecursionLevel + 1, project, subProject));
                 }
                 if (null != projectFinder)
                 {
                     foreach (var assemblySubProject in project.AssemblyReferences.SelectMany(projectFinder.FindProjectForAssemblyReference))
                     {
-                        projectsToTraverse.Enqueue(new KeyValuePair<Project, Project>(project, assemblySubProject));
+                        projectsToTraverse.Enqueue(new ResolvedProjectDependencyInfo(projectPair.RecursionLevel + 1, project, assemblySubProject));
                     }
                 }
             }

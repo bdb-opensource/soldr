@@ -44,16 +44,21 @@ namespace BuildDependencyReader.BuildDependencyResolver
         public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName)
         {
             _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
-            _logger.InfoFormat("\tCopying dependencies...");
-            Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder,
-                                                            projectFinder.GetProjectsOfSLN(solutionFileName)
-                                                                         .SelectMany(x => x.AssemblyReferences)
-                                                                         .Distinct());
+            UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName);
             _logger.InfoFormat("\tCleaning...");
             MSBuild(solutionFileName, "/t:clean");
             _logger.InfoFormat("\tBuilding...");
             MSBuild(solutionFileName);
             _logger.InfoFormat("\tDone: '{0}'", solutionFileName);
+        }
+
+        public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName)
+        {
+            _logger.InfoFormat("\tCopying dependencies...");
+            Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder,
+                                                            projectFinder.GetProjectsOfSLN(solutionFileName)
+                                                                         .SelectMany(x => x.AssemblyReferences)
+                                                                         .Distinct());
         }
 
 

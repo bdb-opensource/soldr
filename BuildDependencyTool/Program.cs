@@ -50,6 +50,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
         public bool Verbose;
         public bool PrintSolutionBuildOrder;
         public bool Build;
+        public bool UpdateComponents;
+        public int RecursionLevel = -1;
     }
 
     class Program
@@ -73,7 +75,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             UpdateLog4NetLevel(optionValues.Verbose);
 
             var projectFinder = new ProjectFinder(optionValues.BasePath, true);
-            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.DependencyInfo(projectFinder, inputFiles, exlcudedSlns);
+            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.GetDependencyInfo(projectFinder, inputFiles, exlcudedSlns, optionValues.RecursionLevel);
 
             if (optionValues.GenerateGraphviz)
             {
@@ -88,6 +90,10 @@ namespace BuildDependencyReader.PrintProjectDependencies
             if (optionValues.Build)
             {
                 PerformBuild(projectFinder, dependencyInfo);
+            }
+            else if (optionValues.UpdateComponents)
+            {
+                PerformUpdateComponents(projectFinder, dependencyInfo);
             }
 
             return 0;
@@ -108,14 +114,27 @@ namespace BuildDependencyReader.PrintProjectDependencies
             }
         }
 
+        protected static void PerformUpdateComponents(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo)
+        {
+            var graph = dependencyInfo.TrimmedSolutionDependencyGraph;
+            var sortedSolutions = graph.TopologicalSort();
+            foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))
+            {
+                Builder.BuildSolution(projectFinder, solutionFileName);
+            }
+            foreach (var solutionFileName in sortedSolutions.Where(x => false == graph.OutEdges(x).Any()))
+            {
+                Builder.UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName);
+            }
+        }
+
         protected static void PerformBuild(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo)
         {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Builder.BuildSolution(projectFinder, solutionFileName);  
+                Builder.BuildSolution(projectFinder, solutionFileName);
             }
         }
-
 
         protected static void GenerateGraphViz(AdjacencyGraph<string, SEdge<string>> graph)
         {
@@ -144,11 +163,18 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             var options = new OptionSet();
             options.Add("b|base-path=",
-                        "base path for searching for sln / csproj files",
+                        "base path for searching for sln / csproj files.",
                         x => optionValues.BasePath = x);
             options.Add("c|compile",
-                        "compile (using msbuild) the inputs using the calculated dependency order",
+                        "compile (using msbuild) the inputs using the calculated dependency order.",
                         x => optionValues.Build = (null != x));
+            options.Add("u|update-components",
+                        "Just update components of the input solutions. This may also compile some projects, but only whatever is neccesary (recursively) to update the components of the solutions mentioned as inputs.",
+                        x => optionValues.UpdateComponents = (null != x));
+            options.Add("r=|recursion-level=",
+                          "How many levels should the builder recurse when building a project's dependencies. Default is infinity (you can specify it by passing -1)." + Environment.NewLine
+                        + "Zero means only the project itself will be built (or if updating components, components will only be updated and nothing will be built.)",
+                        (int x) => optionValues.RecursionLevel = x);
             options.Add("p|print-slns",
                         "print the .sln files of all dependencies in the calculated dependency order",
                         x => optionValues.PrintSolutionBuildOrder = (null != x));
@@ -197,6 +223,10 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 message = "Base path does not exist: '" + optionValues.BasePath + "'";
             }
+            else if (optionValues.Build && optionValues.UpdateComponents)
+            {
+                message = "Can only specify one of: Build, Update components. But not both.";
+            }
 
             if (null != message)
             {
@@ -209,6 +239,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         protected static void ShowHelp(string message, OptionSet options)
         {
             Console.Error.WriteLine(Process.GetCurrentProcess().ProcessName + ": " + message);
+            Console.Error.WriteLine();
             options.WriteOptionDescriptions(Console.Error);
         }
 
