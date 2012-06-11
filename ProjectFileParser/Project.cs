@@ -6,12 +6,14 @@ using System.Text;
 using System.IO;
 using System.Text.RegularExpressions;
 using Common;
+using BuildDependencyReader.Common;
 
 namespace BuildDependencyReader.ProjectFileParser
 {
     public class Project
     {
         #region Constants
+
         protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
            System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -54,15 +56,15 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public static Project FromCSProj(string filePath)
         {
-            return GetProjectForPath(System.IO.Path.GetFullPath(Uri.UnescapeDataString(filePath)));
+            return GetProjectForPath(PathExtensions.GetFullPath(Uri.UnescapeDataString(filePath)));
         }
 
 
         public static string ResolvePath(string basePath, string pathToResolve)
         {
-            return System.IO.Path.IsPathRooted(pathToResolve) 
-                   ? pathToResolve
-                   : System.IO.Path.GetFullPath(System.IO.Path.Combine(basePath, pathToResolve));
+            return System.IO.Path.IsPathRooted(pathToResolve)
+                 ? pathToResolve
+                 : PathExtensions.GetFullPath(System.IO.Path.Combine(basePath, pathToResolve));
         }
 
         public IEnumerable<FileInfo> GetBuiltProjectOutputs()

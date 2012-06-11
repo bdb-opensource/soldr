@@ -6,6 +6,7 @@ using BuildDependencyReader.ProjectFileParser;
 using QuickGraph;
 using QuickGraph.Algorithms;
 using Common;
+using BuildDependencyReader.Common;
 
 namespace BuildDependencyReader.BuildDependencyResolver
 {
@@ -199,7 +200,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         protected static string CanonicalPath(string x)
         {
-            return System.IO.Path.GetFullPath(x.Trim());
+            return PathExtensions.GetFullPath(x.Trim());
         }
 
     }
