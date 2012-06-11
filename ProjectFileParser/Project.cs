@@ -118,7 +118,13 @@ namespace BuildDependencyReader.ProjectFileParser
                 throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the project no default configuration (Project = {0})",
                                                   this));
             }
-            var directoryInfo = new DirectoryInfo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path), this.DefaultConfiguration.Value.OutputPath));
+            if (String.IsNullOrWhiteSpace(this.DefaultConfiguration.Value.OutputPath))
+            {
+                throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the default configuration '{1}' has no output path set (Project = {0})",
+                                                  this, this.DefaultConfiguration.Value));
+            }
+            var directoryInfo = new DirectoryInfo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path), 
+                                                  this.DefaultConfiguration.Value.OutputPath));
             var outputs = directoryInfo.EnumerateFiles();
             if (includeDependencies) {
                 return outputs;
