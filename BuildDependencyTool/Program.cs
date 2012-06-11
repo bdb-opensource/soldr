@@ -147,6 +147,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             var fileName = System.IO.Path.GetTempFileName() + ".svg";
             var outFileName = graphviz.Generate(new DotEngine(), fileName);
             _logger.InfoFormat("GraphViz Output to: " + fileName);
+            Console.Error.WriteLine("GraphViz Output to: " + fileName);
         }
 
         
@@ -173,7 +174,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
                         x => optionValues.UpdateComponents = (null != x));
             options.Add("r=|recursion-level=",
                           "How many levels should the builder recurse when building a project's dependencies. Default is infinity (you can specify it by passing -1)." + Environment.NewLine
-                        + "Zero means only the project itself will be built (or if updating components, components will only be updated and nothing will be built.)",
+                        + "Zero means only the direct dependencies of the project itself will be considered.",
                         (int x) => optionValues.RecursionLevel = x);
             options.Add("p|print-slns",
                         "print the .sln files of all dependencies in the calculated dependency order",
