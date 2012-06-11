@@ -259,8 +259,13 @@ namespace BuildDependencyReader.ProjectFileParser
         {
             var assemblyName = referenceNode.Attribute("Include").Value;
             string hintPath = null;
-            var hintPathNode = referenceNode.Descendants(CSProjNamespace + "HintPath")
-                                            .SingleOrDefault();
+            var hintPathNodes = referenceNode.Descendants(CSProjNamespace + "HintPath")
+                                             .ToArray();
+            if (1 < hintPathNodes.Length)
+            {
+                throw new AssemblyReferenceMultipleHintPaths(assemblyName, String.Join(",", hintPathNodes.Select(x => x.Value)), projectFileName);
+            }
+            var hintPathNode = hintPathNodes.SingleOrDefault();
 
             if (null != hintPathNode)
             {

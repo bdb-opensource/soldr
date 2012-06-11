@@ -20,4 +20,20 @@ namespace BuildDependencyReader.ProjectFileParser
         {
         }
     }
+
+    [Serializable]
+    public class AssemblyReferenceMultipleHintPaths : Exception
+    {
+        protected AssemblyReferenceMultipleHintPaths() : base() { }
+        public AssemblyReferenceMultipleHintPaths(SerializationInfo info, StreamingContext context) : base(info, context) { }
+
+        public AssemblyReferenceMultipleHintPaths(string assemblyName, string hintPath, string containingProjectFile)
+            : base(String.Format("Assembly Reference '{0}' has a multiple HintPaths: '{1}' (in project {2})",
+                                 assemblyName,
+                                 hintPath,
+                                 containingProjectFile))
+        {
+        }
+    }
+
 }
