@@ -20,7 +20,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public override string ToString()
         {
-            return String.Format("{ ProjectConfiguration: Configuration='{0}', Platform='{1}', OutputPath='{2}' }",
+            return String.Format("{{ ProjectConfiguration: Configuration='{0}', Platform='{1}', OutputPath='{2}' }}",
                                  this.Configuration, this.Platform, this.OutputPath);
         }
     }

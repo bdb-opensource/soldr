@@ -43,7 +43,23 @@ namespace BuildDependencyReader.ProjectFileParser
 
         #region Constructors
 
-        protected Project() { }
+        public Project(string csProjFilePath)
+        {
+            var fullPath = PathExtensions.GetFullPath(csProjFilePath);
+            var projectDirectory = System.IO.Path.GetDirectoryName(fullPath);
+
+            Project.ValidateFileExists(fullPath);
+
+            this.Path = fullPath;
+            var document = XDocument.Load(fullPath);
+            this.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
+            this.Configurations = GetProjectConfigurations(document).ToArray();
+            this.DefaultConfiguration = this.FindDefaultConfiguration(document);
+            this.AssemblyReferences = GetAssemblyReferences(this.Path, projectDirectory, document).ToArray();
+            this.ProjectReferences = GetProjectReferences(projectDirectory, document).ToArray();
+
+            this.ValidateDefaultConfiguration();
+        }
 
         #endregion
 
@@ -113,6 +129,22 @@ namespace BuildDependencyReader.ProjectFileParser
 
         protected IEnumerable<FileInfo> GetBuiltProjectOutputsWithoutCyclicProtection(bool includeDependencies)
         {
+            this.ValidateDefaultConfiguration();
+            var directoryInfo = new DirectoryInfo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path), 
+                                                  this.DefaultConfiguration.Value.OutputPath));
+            var outputs = directoryInfo.EnumerateFiles();
+            if (includeDependencies) {
+                return outputs;
+            }
+            return outputs.Where(f => (false == ExistsAssemblyReferenceWithName(f.Name))
+                                   && (false == ExistsReferencedProjectOutputWithName(f.Name)));
+        }
+
+        /// <summary>
+        /// Checks that the project's default configuration is "useable" for the build tool. Throws an exception if not.
+        /// </summary>
+        public void ValidateDefaultConfiguration()
+        {
             if (false == this.DefaultConfiguration.HasValue)
             {
                 throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the project no default configuration (Project = {0})",
@@ -123,14 +155,6 @@ namespace BuildDependencyReader.ProjectFileParser
                 throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the default configuration '{1}' has no output path set (Project = {0})",
                                                   this, this.DefaultConfiguration.Value));
             }
-            var directoryInfo = new DirectoryInfo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path), 
-                                                  this.DefaultConfiguration.Value.OutputPath));
-            var outputs = directoryInfo.EnumerateFiles();
-            if (includeDependencies) {
-                return outputs;
-            }
-            return outputs.Where(f => (false == ExistsAssemblyReferenceWithName(f.Name))
-                                   && (false == ExistsReferencedProjectOutputWithName(f.Name)));
         }
 
         protected bool ExistsReferencedProjectOutputWithName(string fileName)
@@ -171,21 +195,7 @@ namespace BuildDependencyReader.ProjectFileParser
         {
             try
             {
-                var project = new Project();
-                var projectDirectory = System.IO.Path.GetDirectoryName(fullPath);
-
-                ValidateFileExists(fullPath);
-
-                project.Path = fullPath;
-
-                var document = XDocument.Load(fullPath);
-
-                project.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
-                project.Configurations = GetProjectConfigurations(document).ToArray();
-                project.DefaultConfiguration = FindDefaultConfiguration(project, document);
-                project.AssemblyReferences = GetAssemblyReferences(project.Path, projectDirectory, document).ToArray();
-                project.ProjectReferences = GetProjectReferences(projectDirectory, document).ToArray();
-                return project;
+                return new Project(fullPath);
             }
             catch (Exception e)
             {
@@ -193,7 +203,7 @@ namespace BuildDependencyReader.ProjectFileParser
             }
         }
 
-        protected static Nullable<ProjectConfiguration> FindDefaultConfiguration(Project project, XDocument document)
+        protected Nullable<ProjectConfiguration> FindDefaultConfiguration(XDocument document)
         {
             var defaultConfigurationElement = document.Descendants(CSProjNamespace + "Configuration").SingleOrDefault();
             if (null == defaultConfigurationElement)
@@ -201,9 +211,9 @@ namespace BuildDependencyReader.ProjectFileParser
                 return null;
             }
             string defaultConfigurationName = defaultConfigurationElement.Value.Trim();
-            var configsWithMatchingName = project.Configurations
-                                                 .Where(x => x.Configuration.ToLowerInvariant().Equals(defaultConfigurationName.ToLowerInvariant()))
-                                                 .ToArray();
+            var configsWithMatchingName = this.Configurations
+                                              .Where(x => x.Configuration.ToLowerInvariant().Equals(defaultConfigurationName.ToLowerInvariant()))
+                                              .ToArray();
 
             string defaultPlatform = null;
             var defaultPlatformElement = document.Descendants(CSProjNamespace + "Platform").SingleOrDefault();
