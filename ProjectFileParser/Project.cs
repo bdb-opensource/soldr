@@ -145,11 +145,14 @@ namespace BuildDependencyReader.ProjectFileParser
         /// </summary>
         public void ValidateDefaultConfiguration()
         {
+            // TODO: Perhaps the validation that there IS a default config 
+            // should only be done when trying to access the build outputs?
             if (false == this.DefaultConfiguration.HasValue)
             {
-                throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the project no default configuration (Project = {0})",
+                throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the project has no matching default configuration (Project = {0})",
                                                   this));
             }
+            // TODO: If there IS a default config, this part of the validation should probably ALWAYS be done (in the constructor or something).
             if (String.IsNullOrWhiteSpace(this.DefaultConfiguration.Value.OutputPath))
             {
                 throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the default configuration '{1}' has no output path set (Project = {0})",
@@ -226,7 +229,8 @@ namespace BuildDependencyReader.ProjectFileParser
             }
 
             return configsWithMatchingName.Where(x => false == String.IsNullOrWhiteSpace(x.Platform))
-                                          .SingleOrDefault(x => defaultPlatform.Equals(x.Platform.ToLowerInvariant()));
+                                          .Cast<Nullable<ProjectConfiguration>>()
+                                          .SingleOrDefault(x => defaultPlatform.Equals(x.Value.Platform.ToLowerInvariant()));
         }
 
         protected static IEnumerable<ProjectConfiguration> GetProjectConfigurations(XDocument document)
