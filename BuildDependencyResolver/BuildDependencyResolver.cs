@@ -5,7 +5,6 @@ using System.Text;
 using BuildDependencyReader.ProjectFileParser;
 using QuickGraph;
 using QuickGraph.Algorithms;
-using Common;
 using BuildDependencyReader.Common;
 
 namespace BuildDependencyReader.BuildDependencyResolver

@@ -13,7 +13,6 @@ using Mono.Options;
 using log4net.Repository.Hierarchy;
 using log4net;
 using log4net.Core;
-using Common;
 using System.Text.RegularExpressions;
 
 namespace BuildDependencyReader.PrintProjectDependencies

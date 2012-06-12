@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using BuildDependencyReader.ProjectFileParser;
-using System.Diagnostics;
-using Common;
 using System.Text.RegularExpressions;
+using BuildDependencyReader.Common;
+using BuildDependencyReader.ProjectFileParser;
 
 namespace BuildDependencyReader.BuildDependencyResolver
 {
@@ -73,12 +73,15 @@ namespace BuildDependencyReader.BuildDependencyResolver
         public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreAllButMatching)
         {
             _logger.InfoFormat("\tCopying dependencies...");
-            Builder.CopyAssemblyReferencesFromBuiltProjects(
-                projectFinder,
-                projectFinder.GetProjectsOfSLN(solutionFileName)
-                                .SelectMany(x => x.AssemblyReferences)
-                                .Distinct()
-                                .Where(x => IncludeAssemblyWhenCopyingDeps(x, assemblyNamePatterns, ignoreAllButMatching)));
+            var assemblyReferences = projectFinder.GetProjectsOfSLN(solutionFileName)
+                                                  .SelectMany(x => x.AssemblyReferences)
+                                                  .Distinct();
+            var filtered = assemblyReferences.Split(x => IncludeAssemblyWhenCopyingDeps(x, assemblyNamePatterns, ignoreAllButMatching));
+            foreach (var ignored in filtered.Value)
+            {
+                _logger.InfoFormat("Not copying ignored assembly: '{0}'", ignored.ToString());
+            }
+            Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, filtered.Key);
         }
 
         private static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreAllButMatching)

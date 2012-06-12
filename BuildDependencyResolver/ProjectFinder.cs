@@ -5,7 +5,7 @@ using System.Text;
 using BuildDependencyReader.ProjectFileParser;
 using System.IO;
 using System.Text.RegularExpressions;
-using Common;
+using BuildDependencyReader.Common;
 
 namespace BuildDependencyReader.BuildDependencyResolver
 {

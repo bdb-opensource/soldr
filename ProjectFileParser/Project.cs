@@ -5,7 +5,6 @@ using System.Xml.Linq;
 using System.Text;
 using System.IO;
 using System.Text.RegularExpressions;
-using Common;
 using BuildDependencyReader.Common;
 
 namespace BuildDependencyReader.ProjectFileParser
