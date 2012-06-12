@@ -66,7 +66,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public override string ToString()
         {
-            return string.Format("{{ Project: Name = '{0}', Path = '{1}' }}", this.Name, this.Path);
+            return string.Format("{{ Project: Name='{0}', Path='{1}' }}", this.Name, this.Path);
         }
 
         public static Project FromCSProj(string filePath)
@@ -137,6 +137,25 @@ namespace BuildDependencyReader.ProjectFileParser
             }
             return outputs.Where(f => (false == ExistsAssemblyReferenceWithName(f.Name))
                                    && (false == ExistsReferencedProjectOutputWithName(f.Name)));
+        }
+
+        /// <summary>
+        /// Validates that the assembly references have hint paths.
+        /// <para>(Not validated automatically, you must call this if you want to validate)</para>
+        /// </summary>
+        public void ValidateHintPaths(Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
+        {
+            var invalidHintPathAssemblies = this.AssemblyReferences
+                    .Where(x => String.IsNullOrWhiteSpace(x.HintPath))
+                    .Where(x => BoolExtensions.Flip(assemblyNamePatterns.Any(r => r.IsMatch(x.Name)), ignoreOnlyMatching))
+                    .ToArray();
+            if (invalidHintPathAssemblies.Any())
+            {
+                throw new Exception(String.Format("Found assembly references with empty HintPaths in project '{0}'. Assembly references:\n{1}",
+                    this.ToString(),
+                    StringExtensions.Tabify(invalidHintPathAssemblies.Select(x => x.ToString()))));
+
+            }
         }
 
         /// <summary>

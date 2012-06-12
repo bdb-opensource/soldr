@@ -84,6 +84,12 @@ namespace BuildDependencyReader.PrintProjectDependencies
         private static void PerformCommands(List<string> exlcudedSlns, List<string> inputFiles, OptionValues optionValues)
         {
             var projectFinder = new ProjectFinder(optionValues.BasePath, true);
+
+            foreach (var project in projectFinder.AllProjectsInPath())
+            {
+                ValidateProject(project, optionValues);
+            }
+
             var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.GetDependencyInfo(projectFinder, inputFiles, exlcudedSlns, optionValues.RecursionLevel);
 
             if (optionValues.GenerateGraphviz)
@@ -99,12 +105,24 @@ namespace BuildDependencyReader.PrintProjectDependencies
             if (optionValues.UpdateComponents)
             {
                 PerformUpdateComponents(projectFinder, dependencyInfo, optionValues);
-            } 
+            }
             else if (optionValues.Build)
             {
                 PerformBuild(projectFinder, dependencyInfo, optionValues);
             }
+        }
 
+        private static void ValidateProject(Project project, OptionValues optionValues)
+        {
+            project.ValidateHintPaths(optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
+            foreach (var assemblyReference in project.AssemblyReferences.Where(x => false == String.IsNullOrWhiteSpace(x.HintPath)))
+            {
+                // TODO: Verify that the hintpath, when resolved, is not outside optionValues.BasePath
+                if (System.IO.Path.IsPathRooted(assemblyReference.HintPath))
+                {
+                    throw new Exception(String.Format("Absolute path found in HintPath in assembly reference '{0}', project: '{1}' (will break easily when trying to compile on another machine!)", assemblyReference, project));
+                }
+            }
         }
 
         protected static void UpdateLog4NetLevel(bool verbose)
