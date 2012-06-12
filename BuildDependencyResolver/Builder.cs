@@ -23,6 +23,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             var originalAssemblyReferenceNames = new HashSet<string>(assemblyReferences.Select(ComparableAssemblyName));
 
             var remainingReferences = new Queue<AssemblyReference>(assemblyReferences);
+            var indirectReferencesOutsideSolution = new List<IndirectReferenceInfo>();
 
             while (remainingReferences.Any())
             {
@@ -56,24 +57,60 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
                 // Add sub-references - the indirectly referenced assemblies, the ones used by the current assemblyReference
                 var explicitTargetPath = System.IO.Path.GetDirectoryName(assemblyReference.ExplicitHintPath);
-                AddIndirectReferences(originalAssemblyReferenceNames, remainingReferences, targetPath, buildingProject, projectOutputs, explicitTargetPath, assemblyReference);
+                // TODO: Refactor
+                AddIndirectReferences(projectFinder, assemblyNamePatterns, ignoreOnlyMatching, originalAssemblyReferenceNames, remainingReferences, targetPath, buildingProject, projectOutputs, explicitTargetPath, assemblyReference, indirectReferencesOutsideSolution);
             }
 
+            foreach (var indirectReferenceInfo in 
+                indirectReferencesOutsideSolution
+                    .Where(x => false == originalAssemblyReferenceNames.Contains(ComparableAssemblyName(x.IndirectReference))))
+            {
+                _logger.WarnFormat(@"Skipped indirect reference from solution other than the direct reference that caused it:
+    Indirect reference:             {0}
+    Indirect reference built by:    {1}
+    Required by project:            {2}
+    Which builds reference:         {3}
+    Which is used directly by projects:
+    {4}
+", 
+                    indirectReferenceInfo.IndirectReference.ToString(),
+                    indirectReferenceInfo.IndirectReferenceProject.ToString(),
+                    indirectReferenceInfo.DirectReferenceProject.ToString(),
+                    indirectReferenceInfo.DirectReference.ToString(),
+                    StringExtensions.Tabify(ProjectsUsingAssemblyReference(projectFinder, indirectReferenceInfo.DirectReference)));
+            }
         }
 
-        private static void AddIndirectReferences(HashSet<string> originalAssemblyReferenceNames, Queue<AssemblyReference> remainingReferences, string targetPath, Project buildingProject, FileInfo[] projectOutputs, string explicitTargetPath, AssemblyReference assemblyReference)
+        private static void AddIndirectReferences(IProjectFinder projectFinder,  Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, 
+            HashSet<string> originalAssemblyReferenceNames, Queue<AssemblyReference> remainingReferences, string targetPath, 
+            Project buildingProject, FileInfo[] projectOutputs, string explicitTargetPath, AssemblyReference assemblyReference,
+            List<IndirectReferenceInfo> indirectReferencesOutsideSolution)
         {
-            var indirectReferences = GetIndirectReferences(originalAssemblyReferenceNames, targetPath, projectOutputs, explicitTargetPath);
+            var indirectReferences = GetIndirectReferences(originalAssemblyReferenceNames, targetPath, projectOutputs, explicitTargetPath)
+                                            .Where(x => IncludeAssemblyWhenCopyingDeps(x, assemblyNamePatterns, ignoreOnlyMatching))
+                                            .ToArray();
+
             if (false == indirectReferences.Any())
             {
                 return;
             }
+            var buildingSolution = projectFinder.GetSLNFileForProject(buildingProject);
+
             _logger.InfoFormat("Adding indirect references due to reference {0} built by project: '{1}'\n{2}",
                 assemblyReference, buildingProject, StringExtensions.Tabify(indirectReferences.Select(x => x.ToString())));
             foreach (var indirectReference in indirectReferences)
             {
-                originalAssemblyReferenceNames.Add(ComparableAssemblyName(indirectReference));
-                remainingReferences.Enqueue(indirectReference);
+                var indirectRefrenceBuildingProject = projectFinder.FindProjectForAssemblyReference(indirectReference).SingleOrDefault();
+                if (null != indirectRefrenceBuildingProject)
+                {
+                    if (projectFinder.GetSLNFileForProject(indirectRefrenceBuildingProject).FullName.Equals(buildingSolution.FullName, StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        originalAssemblyReferenceNames.Add(ComparableAssemblyName(indirectReference));
+                        remainingReferences.Enqueue(indirectReference);
+                        continue;
+                    }
+                }
+                indirectReferencesOutsideSolution.Add(new IndirectReferenceInfo(assemblyReference, buildingProject, indirectReference, indirectRefrenceBuildingProject));
             }
         }
 
