@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using BuildDependencyReader.Common;
 using BuildDependencyReader.ProjectFileParser;
+using System.IO;
 
 namespace BuildDependencyReader.BuildDependencyResolver
 {
@@ -19,15 +20,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
         {
             foreach (var assemblyReference in assemblyReferences)
             {
-                var buildingProject = projectFinder.FindProjectForAssemblyReference(assemblyReference).SingleOrDefault();
-                // TODO: Include more information in the warnings: which projects use the assembly, which project builds it, etc.
-                if (null == buildingProject)
-                {
-                    _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}', used by projects:\n{1}", 
-                        assemblyReference,
-                        ProjectsUsingAssemblyReference(projectFinder, assemblyReference));
-                    continue;
-                }
                 if (String.IsNullOrWhiteSpace(assemblyReference.HintPath))
                 {
                     _logger.WarnFormat("Can't copy dependency (no target path): Missing HintPath for assembly reference: '{0}', used by projects:\n{1}",
@@ -35,7 +27,18 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     continue;
                 }
                 var targetPath = System.IO.Path.GetDirectoryName(assemblyReference.HintPath);
-                CopyProjectOutputsToDirectory(buildingProject, targetPath);
+                var buildingProject = projectFinder.FindProjectForAssemblyReference(assemblyReference).SingleOrDefault();
+                if (null == buildingProject)
+                {
+                    _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}', used by projects:\n{1}", 
+                        assemblyReference,
+                        ProjectsUsingAssemblyReference(projectFinder, assemblyReference));
+                    continue;
+                }
+
+                var projectOutputs = buildingProject.GetBuiltProjectOutputs().ToArray();
+
+                CopyFilesToDirectory(projectOutputs, targetPath);
             }
         }
 
@@ -47,16 +50,18 @@ namespace BuildDependencyReader.BuildDependencyResolver
                                                         .Select(x => x.ToString()));
         }
 
-        public static void CopyProjectOutputsToDirectory(Project project, string targetPath)
+        private static void CopyFilesToDirectory(IEnumerable<FileInfo> files, string targetPath)
         {
-            foreach (var projectOutput in project.GetBuiltProjectOutputs())
+            foreach (var file in files)
             {
-                var source = projectOutput.FullName;
-                var target = System.IO.Path.Combine(targetPath, projectOutput.Name);
+                var source = file.FullName;
+                var target = System.IO.Path.Combine(targetPath, file.Name);
 
                 _logger.InfoFormat("copying {0} -> {1}...", source, target);
                 System.IO.Directory.CreateDirectory(targetPath);
                 System.IO.File.Copy(source, target, true);
+
+                var assemblyDefinition = AssemblyDefinition.ReadAssembly(file.FullName);
             }
         }
         

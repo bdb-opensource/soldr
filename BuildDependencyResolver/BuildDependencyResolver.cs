@@ -154,6 +154,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 {
                     projectsToTraverse.Enqueue(new ResolvedProjectDependencyInfo(projectPair.RecursionLevel + 1, project, subProject));
                 }
+                // TODO: Why do we allow a null projectFinder at all here?
                 if (null != projectFinder)
                 {
                     foreach (var assemblySubProject in project.AssemblyReferences.SelectMany(projectFinder.FindProjectForAssemblyReference))

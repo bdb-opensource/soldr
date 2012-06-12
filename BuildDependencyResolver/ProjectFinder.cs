@@ -19,7 +19,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         protected HashSet<FileInfo> _SLNFileInfos;
         protected Project[] _projects;
         protected Dictionary<Project, FileInfo> _mapProjectToSLN = new Dictionary<Project, FileInfo>();
-        protected Dictionary<AssemblyReference, IEnumerable<Project>> _mapAssemblyReferenceToProject;
+        protected Dictionary<string, IEnumerable<Project>> _mapAssemblyReferenceToProject;
 
         protected static readonly Regex csProjInSLNRegex = new Regex(@"""[^""]*\.csproj""", RegexOptions.IgnoreCase);
 
@@ -48,16 +48,21 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         public IEnumerable<Project> FindProjectForAssemblyReference(AssemblyReference assemblyReference)
         {
+            return FindProjectForAssemblyName(AssemblyReference.AssemblyNameFromFullName(assemblyReference));
+        }
+
+        public IEnumerable<Project> FindProjectForAssemblyName(string assemblyName)
+        {
             if (null == this._mapAssemblyReferenceToProject)
             {
-                this._mapAssemblyReferenceToProject = new Dictionary<AssemblyReference, IEnumerable<Project>>();
+                this._mapAssemblyReferenceToProject = new Dictionary<string, IEnumerable<Project>>();
             }
             IEnumerable<Project> result = null;
-            if (false == this._mapAssemblyReferenceToProject.TryGetValue(assemblyReference, out result))
+            if (false == this._mapAssemblyReferenceToProject.TryGetValue(assemblyName, out result))
             {
-                result = this._projects.Where(x => AssemblyReference.AssemblyNameFromFullName(assemblyReference).Equals(x.Name, StringComparison.InvariantCultureIgnoreCase))
+                result = this._projects.Where(x => assemblyName.Equals(x.Name, StringComparison.InvariantCultureIgnoreCase))
                                        .ToArray();
-                this._mapAssemblyReferenceToProject.Add(assemblyReference, result);
+                this._mapAssemblyReferenceToProject.Add(assemblyName, result);
             }
             return result;
         }
