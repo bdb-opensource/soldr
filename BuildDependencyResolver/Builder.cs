@@ -21,6 +21,12 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 var buildingProject = projectFinder.FindProjectForAssemblyReference(assemblyReference).SingleOrDefault();
                 if (null == buildingProject)
                 {
+                    _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}'", assemblyReference);
+                    continue;
+                }
+                if (String.IsNullOrWhiteSpace(assemblyReference.HintPath))
+                {
+                    _logger.WarnFormat("Can't copy dependency (no target path): Missing HintPath for assembly reference: '{0}'", assemblyReference);
                     continue;
                 }
                 var targetPath = System.IO.Path.GetDirectoryName(assemblyReference.HintPath);
@@ -67,6 +73,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             var process = new Process();
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.UseShellExecute = false;
+            // TODO: Remove hard-coded path to msbuild
             process.StartInfo.FileName = @"C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe";
             process.StartInfo.Arguments = String.Format("/nologo /v:quiet \"{0}\" {1}", solutionFileName, args);
             process.StartInfo.RedirectStandardError = true;
