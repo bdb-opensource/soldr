@@ -140,7 +140,7 @@ namespace BuildDependencyReader.ProjectFileParser
         }
 
         /// <summary>
-        /// Validates that the assembly references have hint paths.
+        /// Validates that the assembly references have valid hint paths.
         /// <para>(Not validated automatically, you must call this if you want to validate)</para>
         /// </summary>
         public void ValidateHintPaths(Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
@@ -155,6 +155,21 @@ namespace BuildDependencyReader.ProjectFileParser
                     this.ToString(),
                     StringExtensions.Tabify(invalidHintPathAssemblies.Select(x => x.ToString()))));
 
+            }
+        }
+
+        /// <summary>
+        /// Validates that the assembly references have hint paths that point to existing files.
+        /// <para>(Not validated automatically, you must call this if you want to validate)</para>
+        /// </summary>
+        public void ValidateAssemblyReferencesAreAvailable()
+        {
+            foreach (var assemblyReference in this.AssemblyReferences.Where(x => false == String.IsNullOrWhiteSpace(x.HintPath)))
+            {
+                if (false == File.Exists(assemblyReference.HintPath))
+                {
+                    throw new AssemblyReferenceHintPathDoesNotExist(assemblyReference.Name, assemblyReference.HintPath, this.Name);
+                }
             }
         }
 
@@ -310,11 +325,6 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 originalHintPath = Uri.UnescapeDataString(hintPathNode.Value);
                 absoluteHintPath = ResolvePath(projectDirectory, originalHintPath);
-                // TODO: Validate this at a later stage to allow parsing the project tree when dependencies are not yet in place
-                //if (false == File.Exists(hintPath))
-                //{
-                //    throw new AssemblyReferenceHintPathDoesNotExist(assemblyName, hintPath, projectFileName);
-                //}
             }
             return new AssemblyReference(assemblyName, absoluteHintPath, originalHintPath);
         }

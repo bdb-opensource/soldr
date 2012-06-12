@@ -75,11 +75,21 @@ namespace BuildDependencyReader.BuildDependencyResolver
         {
             _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
             UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching);
+            ValidateSolutionReadyForBuild(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching);
             _logger.InfoFormat("\tCleaning...");
             MSBuild(solutionFileName, "/t:clean");
             _logger.InfoFormat("\tBuilding...");
             MSBuild(solutionFileName);
             _logger.InfoFormat("\tDone: '{0}'", solutionFileName);
+        }
+
+        private static void ValidateSolutionReadyForBuild(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching)
+        {
+            foreach (var project in projectFinder.GetProjectsOfSLN(solutionFileName))
+            {
+                project.ValidateHintPaths(ignoredDependencyAssemblies, ignoreOnlyMatching);
+                project.ValidateAssemblyReferencesAreAvailable();
+            }
         }
 
         public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
