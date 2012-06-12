@@ -117,8 +117,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             project.ValidateHintPaths(optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
             foreach (var assemblyReference in project.AssemblyReferences.Where(x => false == String.IsNullOrWhiteSpace(x.HintPath)))
             {
-                // TODO: Verify that the hintpath, when resolved, is not outside optionValues.BasePath
-                if (System.IO.Path.IsPathRooted(assemblyReference.HintPath))
+                if (System.IO.Path.IsPathRooted(assemblyReference.ExplicitHintPath))
                 {
                     throw new Exception(String.Format("Absolute path found in HintPath in assembly reference '{0}', project: '{1}' (will break easily when trying to compile on another machine!)", assemblyReference, project));
                 }

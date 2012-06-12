@@ -296,7 +296,8 @@ namespace BuildDependencyReader.ProjectFileParser
         protected static AssemblyReference ParseAssemblyReferenceElement(string projectFileName, string projectDirectory, XElement referenceNode)
         {
             var assemblyName = referenceNode.Attribute("Include").Value;
-            string hintPath = null;
+            string absoluteHintPath = null;
+            string originalHintPath = null;
             var hintPathNodes = referenceNode.Descendants(CSProjNamespace + "HintPath")
                                              .ToArray();
             if (1 < hintPathNodes.Length)
@@ -307,13 +308,15 @@ namespace BuildDependencyReader.ProjectFileParser
 
             if (null != hintPathNode)
             {
-                hintPath = ResolvePath(projectDirectory, Uri.UnescapeDataString(hintPathNode.Value));
-                if (false == File.Exists(hintPath))
-                {
-                    throw new AssemblyReferenceHintPathDoesNotExist(assemblyName, hintPath, projectFileName);
-                }
+                originalHintPath = Uri.UnescapeDataString(hintPathNode.Value);
+                absoluteHintPath = ResolvePath(projectDirectory, originalHintPath);
+                // TODO: Validate this at a later stage to allow parsing the project tree when dependencies are not yet in place
+                //if (false == File.Exists(hintPath))
+                //{
+                //    throw new AssemblyReferenceHintPathDoesNotExist(assemblyName, hintPath, projectFileName);
+                //}
             }
-            return new AssemblyReference(assemblyName, hintPath);
+            return new AssemblyReference(assemblyName, absoluteHintPath, originalHintPath);
         }
 
         protected static Project GetProjectFromProjectReferenceNode(string projectDirectory, XElement projectReferenceNode)

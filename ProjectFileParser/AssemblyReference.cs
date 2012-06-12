@@ -7,18 +7,31 @@ namespace BuildDependencyReader.ProjectFileParser
 {
     public struct AssemblyReference
     {
+        /// <summary>
+        /// Absolute path of HintPath.
+        /// </summary>
         public readonly string HintPath;
+
+        /// <summary>
+        /// Assembly name
+        /// </summary>
         public readonly string Name;
 
-        public AssemblyReference(string name, string hintPath)
+        /// <summary>
+        /// HintPath as given explicitly in the project file.
+        /// </summary>
+        public readonly string ExplicitHintPath;
+
+        public AssemblyReference(string name, string hintPath, string explicitHintPath)
         {
             this.HintPath = hintPath;
             this.Name = name;
+            this.ExplicitHintPath = explicitHintPath;
         }
 
         public override string ToString()
         {
-            return String.Format("{{ AssemblyReference: Name = '{0}', HintPath = '{1}' }}", this.Name, this.HintPath);
+            return String.Format("{{ AssemblyReference: Name='{0}', HintPath='{1}', ExplicitHintPath='{2}' }}", this.Name, this.HintPath, this.ExplicitHintPath);
         }
 
         public override bool Equals(object obj)
