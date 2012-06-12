@@ -55,7 +55,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 var target = System.IO.Path.Combine(targetPath, projectOutput.Name);
 
                 _logger.InfoFormat("copying {0} -> {1}...", source, target);
-
+                System.IO.Directory.CreateDirectory(targetPath);
                 System.IO.File.Copy(source, target, true);
             }
         }
