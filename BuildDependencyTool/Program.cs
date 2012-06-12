@@ -14,6 +14,7 @@ using log4net.Repository.Hierarchy;
 using log4net;
 using log4net.Core;
 using System.Text.RegularExpressions;
+using BuildDependencyReader.Common;
 
 namespace BuildDependencyReader.PrintProjectDependencies
 {
@@ -115,11 +116,22 @@ namespace BuildDependencyReader.PrintProjectDependencies
         private static void ValidateProject(Project project, OptionValues optionValues)
         {
             project.ValidateHintPaths(optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
+            var basePath = PathExtensions.GetFullPath(optionValues.BasePath).Trim();
             foreach (var assemblyReference in project.AssemblyReferences.Where(x => false == String.IsNullOrWhiteSpace(x.HintPath)))
             {
                 if (System.IO.Path.IsPathRooted(assemblyReference.ExplicitHintPath))
                 {
                     throw new Exception(String.Format("Absolute path found in HintPath in assembly reference '{0}', project: '{1}' (will break easily when trying to compile on another machine!)", assemblyReference, project));
+                }
+                var hintPathPrefix = PathExtensions.GetFullPath(assemblyReference.HintPath.Trim())
+                                                   .Substring(0, basePath.Length);
+                if (false == basePath.Equals(
+                        hintPathPrefix, 
+                        StringComparison.InvariantCultureIgnoreCase))
+                {
+                    throw new Exception(String.Format(
+                        "HintPath is outside the given base path for finding projects in assembly reference '{0}', project: '{1}', base path: '{2}' expected to equal the prefix of the hint path: '{3}'",
+                        assemblyReference, project, basePath, hintPathPrefix));
                 }
             }
         }
