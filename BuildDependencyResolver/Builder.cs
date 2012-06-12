@@ -23,17 +23,28 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 // TODO: Include more information in the warnings: which projects use the assembly, which project builds it, etc.
                 if (null == buildingProject)
                 {
-                    _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}'", assemblyReference);
+                    _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}', used by projects:\n{1}", 
+                        assemblyReference,
+                        ProjectsUsingAssemblyReference(projectFinder, assemblyReference));
                     continue;
                 }
                 if (String.IsNullOrWhiteSpace(assemblyReference.HintPath))
                 {
-                    _logger.WarnFormat("Can't copy dependency (no target path): Missing HintPath for assembly reference: '{0}'", assemblyReference);
+                    _logger.WarnFormat("Can't copy dependency (no target path): Missing HintPath for assembly reference: '{0}', used by projects:\n{1}",
+                        assemblyReference, ProjectsUsingAssemblyReference(projectFinder, assemblyReference));
                     continue;
                 }
                 var targetPath = System.IO.Path.GetDirectoryName(assemblyReference.HintPath);
                 CopyProjectOutputsToDirectory(buildingProject, targetPath);
             }
+        }
+
+        private static string ProjectsUsingAssemblyReference(IProjectFinder projectFinder, AssemblyReference assemblyReference)
+        {
+            return StringExtensions.Tabify(projectFinder.AllProjectsInPath()
+                                                        .Where(x => x.AssemblyReferences
+                                                                    .Contains(assemblyReference))
+                                                        .Select(x => x.ToString()));
         }
 
         public static void CopyProjectOutputsToDirectory(Project project, string targetPath)

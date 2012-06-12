@@ -10,5 +10,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
         FileInfo GetSLNFileForProject(Project project);
         IEnumerable<Project> GetProjectsOfSLN(string slnFilePath);
         IEnumerable<Project> GetProjectsOfSLN(FileInfo slnFileInfo);
+        IEnumerable<Project> AllProjectsInPath();
     }
 }
