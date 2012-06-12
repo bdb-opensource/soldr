@@ -190,8 +190,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
                         "Exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
                         x => exlcudedSlns.Add(x));
             options.Add("i=|ignore-assembly=",
-                        "Ignore assemblies matching the given regex pattern. May be given multiple times to accumulate patterns.",
-                        x => ignoredAssemblies.Add(new Regex(x)));
+                        "Ignore assemblies matching the given regex pattern (case insensitive). May be given multiple times to accumulate patterns.",
+                        x => ignoredAssemblies.Add(new Regex(x, RegexOptions.IgnoreCase)));
             options.Add("flip-ignore",
                         "Flips the meaning of ignore-assembly (-i) to ignore everything EXCEPT the matched patterns",
                         x => optionValues.FlipIgnore = (null != x));
