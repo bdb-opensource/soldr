@@ -56,25 +56,40 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
                 // Add sub-references - the indirectly referenced assemblies, the ones used by the current assemblyReference
                 var explicitTargetPath = System.IO.Path.GetDirectoryName(assemblyReference.ExplicitHintPath);
-                var indirectReferences = GetIndirectReferences(originalAssemblyReferenceNames, targetPath, projectOutputs, explicitTargetPath);
-                foreach (var indirectReference in indirectReferences)
-                {
-                    _logger.InfoFormat("Adding indirect reference: '{0}'", indirectReference);
-                    originalAssemblyReferenceNames.Add(ComparableAssemblyName(indirectReference));
-                    remainingReferences.Enqueue(indirectReference);
-                }
+                AddIndirectReferences(originalAssemblyReferenceNames, remainingReferences, targetPath, buildingProject, projectOutputs, explicitTargetPath, assemblyReference);
             }
 
         }
 
-        private static IEnumerable<AssemblyReference> GetIndirectReferences(HashSet<string> originalAssemblyReferenceNames, string targetPath, FileInfo[] projectOutputs, string explicitTargetPath)
+        private static void AddIndirectReferences(HashSet<string> originalAssemblyReferenceNames, Queue<AssemblyReference> remainingReferences, string targetPath, Project buildingProject, FileInfo[] projectOutputs, string explicitTargetPath, AssemblyReference assemblyReference)
+        {
+            var indirectReferences = GetIndirectReferences(originalAssemblyReferenceNames, targetPath, projectOutputs, explicitTargetPath);
+            if (false == indirectReferences.Any())
+            {
+                return;
+            }
+            _logger.InfoFormat("Adding indirect references due to reference {0} built by project: '{1}'\n{2}",
+                assemblyReference, buildingProject, StringExtensions.Tabify(indirectReferences.Select(x => x.ToString())));
+            foreach (var indirectReference in indirectReferences)
+            {
+                originalAssemblyReferenceNames.Add(ComparableAssemblyName(indirectReference));
+                remainingReferences.Enqueue(indirectReference);
+            }
+        }
+
+        private static AssemblyReference[] GetIndirectReferences(HashSet<string> originalAssemblyReferenceNames, string targetPath, FileInfo[] projectOutputs, string explicitTargetPath)
         {
             return projectOutputs.Select(x => x.FullName) // Get the file name
                                  .Where(IsAssemblyFileName) // filter only assembly files
                                  .Select(AssemblyDefinition.ReadAssembly) // read the assembly
                                  .SelectMany(x => x.Modules.SelectMany(module => module.AssemblyReferences)) // get the references
-                                 .Select(subRef => new AssemblyReference(subRef.FullName, targetPath, explicitTargetPath)) // create an AssemblyReference object
-                                 .Where(x => false == originalAssemblyReferenceNames.Contains(ComparableAssemblyName(x))); // filter out the ones we already have
+                                 // create an AssemblyReference object
+                                 // TODO: a reference doesn't neccesarily have to be a dll file
+                                 .Select(subRef => new AssemblyReference(subRef.FullName, 
+                                                                         System.IO.Path.Combine(targetPath, subRef.Name + ".dll"), 
+                                                                         System.IO.Path.Combine(explicitTargetPath, subRef.Name + ".dll"))) 
+                                 .Where(x => false == originalAssemblyReferenceNames.Contains(ComparableAssemblyName(x))) // filter out the ones we already have
+                                 .ToArray();
         }
 
         private static bool IsAssemblyFileName(string fileName)
