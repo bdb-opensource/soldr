@@ -87,13 +87,13 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 PrintSolutionBuildOrder(dependencyInfo);
             }
 
-            if (optionValues.Build)
+            if (optionValues.UpdateComponents)
+            {
+                PerformUpdateComponents(projectFinder, dependencyInfo, optionValues.Build);
+            } 
+            else if (optionValues.Build)
             {
                 PerformBuild(projectFinder, dependencyInfo);
-            }
-            else if (optionValues.UpdateComponents)
-            {
-                PerformUpdateComponents(projectFinder, dependencyInfo);
             }
 
             return 0;
@@ -114,13 +114,16 @@ namespace BuildDependencyReader.PrintProjectDependencies
             }
         }
 
-        protected static void PerformUpdateComponents(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo)
+        protected static void PerformUpdateComponents(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo, bool buildDeps)
         {
             var graph = dependencyInfo.TrimmedSolutionDependencyGraph;
             var sortedSolutions = graph.TopologicalSort();
-            foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))
+            if (buildDeps)
             {
-                Builder.BuildSolution(projectFinder, solutionFileName);
+                foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))
+                {
+                    Builder.BuildSolution(projectFinder, solutionFileName);
+                }
             }
             foreach (var solutionFileName in sortedSolutions.Where(x => false == graph.OutEdges(x).Any()))
             {
@@ -169,8 +172,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
             options.Add("c|compile",
                         "compile (using msbuild) the inputs using the calculated dependency order.",
                         x => optionValues.Build = (null != x));
-            options.Add("u|update-components",
-                        "Just update components of the input solutions. This may also compile some projects, but only whatever is neccesary (recursively) to update the components of the solutions mentioned as inputs.",
+            options.Add("u|update-dependencies",
+                        "Update dependencies (components) of the input solutions. Finds the project that builds each dependent assembly and copies the project's outputs to the HintPath given in the input project's definition (.csproj).\nCombine this with -c (--compile) to also compile whatever is neccesary for building the dependency assemblies and then copy them.",
                         x => optionValues.UpdateComponents = (null != x));
             options.Add("r=|recursion-level=",
                           "How many levels should the builder recurse when building a project's dependencies. Default is infinity (you can specify it by passing -1)." + Environment.NewLine
