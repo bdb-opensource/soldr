@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using BuildDependencyReader.Common;
 using BuildDependencyReader.ProjectFileParser;
+using Mono.Cecil;
 using System.IO;
 
 namespace BuildDependencyReader.BuildDependencyResolver
@@ -16,10 +17,22 @@ namespace BuildDependencyReader.BuildDependencyResolver
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
 
-        public static void CopyAssemblyReferencesFromBuiltProjects(IProjectFinder projectFinder, IEnumerable<AssemblyReference> assemblyReferences)
+        public static void CopyAssemblyReferencesFromBuiltProjects(
+            IProjectFinder projectFinder, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, IEnumerable<AssemblyReference> assemblyReferences)
         {
-            foreach (var assemblyReference in assemblyReferences)
+            var originalAssemblyReferenceNames = new HashSet<string>(assemblyReferences.Select(ComparableAssemblyName));
+
+            var remainingReferences = new Queue<AssemblyReference>(assemblyReferences);
+
+            while (remainingReferences.Any())
             {
+                var assemblyReference = remainingReferences.Dequeue();
+                if (false == IncludeAssemblyWhenCopyingDeps(assemblyReference, assemblyNamePatterns, ignoreOnlyMatching))
+                {
+                    _logger.InfoFormat("Not copying ignored assembly: '{0}'", assemblyReference.ToString());
+                    continue;
+                }
+
                 if (String.IsNullOrWhiteSpace(assemblyReference.HintPath))
                 {
                     _logger.WarnFormat("Can't copy dependency (no target path): Missing HintPath for assembly reference: '{0}', used by projects:\n{1}",
@@ -27,10 +40,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     continue;
                 }
                 var targetPath = System.IO.Path.GetDirectoryName(assemblyReference.HintPath);
+
                 var buildingProject = projectFinder.FindProjectForAssemblyReference(assemblyReference).SingleOrDefault();
                 if (null == buildingProject)
                 {
-                    _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}', used by projects:\n{1}", 
+                    _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}', used by projects:\n{1}",
                         assemblyReference,
                         ProjectsUsingAssemblyReference(projectFinder, assemblyReference));
                     continue;
@@ -39,7 +53,40 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 var projectOutputs = buildingProject.GetBuiltProjectOutputs().ToArray();
 
                 CopyFilesToDirectory(projectOutputs, targetPath);
+
+                // Add sub-references - the indirectly referenced assemblies, the ones used by the current assemblyReference
+                var explicitTargetPath = System.IO.Path.GetDirectoryName(assemblyReference.ExplicitHintPath);
+                var indirectReferences = GetIndirectReferences(originalAssemblyReferenceNames, targetPath, projectOutputs, explicitTargetPath);
+                foreach (var indirectReference in indirectReferences)
+                {
+                    _logger.InfoFormat("Adding indirect reference: '{0}'", indirectReference);
+                    originalAssemblyReferenceNames.Add(ComparableAssemblyName(indirectReference));
+                    remainingReferences.Enqueue(indirectReference);
+                }
             }
+
+        }
+
+        private static IEnumerable<AssemblyReference> GetIndirectReferences(HashSet<string> originalAssemblyReferenceNames, string targetPath, FileInfo[] projectOutputs, string explicitTargetPath)
+        {
+            return projectOutputs.Select(x => x.FullName) // Get the file name
+                                 .Where(IsAssemblyFileName) // filter only assembly files
+                                 .Select(AssemblyDefinition.ReadAssembly) // read the assembly
+                                 .SelectMany(x => x.Modules.SelectMany(module => module.AssemblyReferences)) // get the references
+                                 .Select(subRef => new AssemblyReference(subRef.FullName, targetPath, explicitTargetPath)) // create an AssemblyReference object
+                                 .Where(x => false == originalAssemblyReferenceNames.Contains(ComparableAssemblyName(x))); // filter out the ones we already have
+        }
+
+        private static bool IsAssemblyFileName(string fileName)
+        {
+            var trimmed = fileName.Trim();
+            return trimmed.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) 
+                || trimmed.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase);
+        }
+
+        private static string ComparableAssemblyName(AssemblyReference assemblyReference)
+        {
+            return assemblyReference.AssemblyNameFromFullName().Trim().ToLowerInvariant();
         }
 
         private static string ProjectsUsingAssemblyReference(IProjectFinder projectFinder, AssemblyReference assemblyReference)
@@ -60,8 +107,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 _logger.InfoFormat("copying {0} -> {1}...", source, target);
                 System.IO.Directory.CreateDirectory(targetPath);
                 System.IO.File.Copy(source, target, true);
-
-                var assemblyDefinition = AssemblyDefinition.ReadAssembly(file.FullName);
             }
         }
         
@@ -103,12 +148,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             var assemblyReferences = projectFinder.GetProjectsOfSLN(solutionFileName)
                                                   .SelectMany(x => x.AssemblyReferences)
                                                   .Distinct();
-            var filtered = assemblyReferences.Split(x => IncludeAssemblyWhenCopyingDeps(x, assemblyNamePatterns, ignoreOnlyMatching));
-            foreach (var ignored in filtered.Value)
-            {
-                _logger.InfoFormat("Not copying ignored assembly: '{0}'", ignored.ToString());
-            }
-            Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, filtered.Key);
+            Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, assemblyNamePatterns, ignoreOnlyMatching, assemblyReferences);
         }
 
         private static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)

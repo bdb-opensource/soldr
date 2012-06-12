@@ -48,7 +48,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         public IEnumerable<Project> FindProjectForAssemblyReference(AssemblyReference assemblyReference)
         {
-            return FindProjectForAssemblyName(AssemblyReference.AssemblyNameFromFullName(assemblyReference));
+            return FindProjectForAssemblyName(assemblyReference.AssemblyNameFromFullName());
         }
 
         public IEnumerable<Project> FindProjectForAssemblyName(string assemblyName)

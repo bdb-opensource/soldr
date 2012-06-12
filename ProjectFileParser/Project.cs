@@ -201,7 +201,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         protected bool ExistsAssemblyReferenceWithName(string fileName)
         {
-            return this.AssemblyReferences.Select(AssemblyReference.AssemblyNameFromFullName)
+            return this.AssemblyReferences.Select(x => x.AssemblyNameFromFullName())
                                           .Any(name => name.Equals(System.IO.Path.GetFileNameWithoutExtension(fileName), StringComparison.InvariantCultureIgnoreCase));
         }
 
