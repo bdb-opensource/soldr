@@ -14,6 +14,7 @@ using log4net.Repository.Hierarchy;
 using log4net;
 using log4net.Core;
 using Common;
+using System.Text.RegularExpressions;
 
 namespace BuildDependencyReader.PrintProjectDependencies
 {
@@ -52,6 +53,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
         public bool Build;
         public bool UpdateComponents;
         public int RecursionLevel = -1;
+        public Regex[] IgnoredAssemblyRegexes;
+        public bool FlipIgnore;
     }
 
     class Program
@@ -89,11 +92,11 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             if (optionValues.UpdateComponents)
             {
-                PerformUpdateComponents(projectFinder, dependencyInfo, optionValues.Build);
+                PerformUpdateComponents(projectFinder, dependencyInfo, optionValues);
             } 
             else if (optionValues.Build)
             {
-                PerformBuild(projectFinder, dependencyInfo);
+                PerformBuild(projectFinder, dependencyInfo, optionValues);
             }
 
             return 0;
@@ -114,28 +117,28 @@ namespace BuildDependencyReader.PrintProjectDependencies
             }
         }
 
-        protected static void PerformUpdateComponents(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo, bool buildDeps)
+        protected static void PerformUpdateComponents(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo, OptionValues optionValues)
         {
             var graph = dependencyInfo.TrimmedSolutionDependencyGraph;
             var sortedSolutions = graph.TopologicalSort();
-            if (buildDeps)
+            if (optionValues.Build)
             {
                 foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))
                 {
-                    Builder.BuildSolution(projectFinder, solutionFileName);
+                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.IgnoredAssemblyRegexes, optionValues.FlipIgnore);
                 }
             }
             foreach (var solutionFileName in sortedSolutions.Where(x => false == graph.OutEdges(x).Any()))
             {
-                Builder.UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName);
+                Builder.UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, optionValues.IgnoredAssemblyRegexes, optionValues.FlipIgnore);
             }
         }
 
-        protected static void PerformBuild(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo)
+        protected static void PerformBuild(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo, OptionValues optionValues)
         {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Builder.BuildSolution(projectFinder, solutionFileName);
+                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.IgnoredAssemblyRegexes, optionValues.FlipIgnore);
             }
         }
 
@@ -164,13 +167,14 @@ namespace BuildDependencyReader.PrintProjectDependencies
             optionValues.GenerateGraphviz = false;
             optionValues.Build = false;
             optionValues.PrintSolutionBuildOrder = false;
+            var ignoredAssemblies = new List<Regex>();
 
             var options = new OptionSet();
             options.Add("b|base-path=",
-                        "base path for searching for sln / csproj files.",
+                        "(required) Base path for searching for sln / csproj files.",
                         x => optionValues.BasePath = x);
             options.Add("c|compile",
-                        "compile (using msbuild) the inputs using the calculated dependency order.",
+                        "Compile (using msbuild) the inputs using the calculated dependency order.",
                         x => optionValues.Build = (null != x));
             options.Add("u|update-dependencies",
                         "Update dependencies (components) of the input solutions. Finds the project that builds each dependent assembly and copies the project's outputs to the HintPath given in the input project's definition (.csproj).\nCombine this with -c (--compile) to also compile whatever is neccesary for building the dependency assemblies and then copy them.",
@@ -180,19 +184,25 @@ namespace BuildDependencyReader.PrintProjectDependencies
                         + "Zero means only the direct dependencies of the project itself will be considered.",
                         (int x) => optionValues.RecursionLevel = x);
             options.Add("p|print-slns",
-                        "print the .sln files of all dependencies in the calculated dependency order",
+                        "Print the .sln files of all dependencies in the calculated dependency order",
                         x => optionValues.PrintSolutionBuildOrder = (null != x));
             options.Add("x|exclude=", 
-                        "exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
+                        "Exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
                         x => exlcudedSlns.Add(x));
+            options.Add("i=|ignore-assembly=",
+                        "Ignore assemblies matching the given regex pattern. May be given multiple times to accumulate patterns.",
+                        x => ignoredAssemblies.Add(new Regex(x)));
+            options.Add("flip-ignore",
+                        "Flips the meaning of ignore-assembly (-i) to ignore everything EXCEPT the matched patterns",
+                        x => optionValues.FlipIgnore = (null != x));
             options.Add("v|verbose",
-                        "print verbose output (will go to stderr)",
+                        "Print verbose output (will go to stderr)",
                         x => optionValues.Verbose = (null != x));
             options.Add("g|graphviz",
-                        "generate graphviz output",
+                        "Generate graphviz output",
                         x => optionValues.GenerateGraphviz = (null != x));
             options.Add("h|help", 
-                        "show help", 
+                        "Show help", 
                         x => userRequestsHelp = (null != x));
 
             string errorMessage = null;
@@ -204,7 +214,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 errorMessage = e.Message;
             }
-
+            optionValues.IgnoredAssemblyRegexes = ignoredAssemblies.ToArray();
             return ValidateOptions(optionValues, userRequestsHelp, options, errorMessage);
         }
 

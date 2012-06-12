@@ -5,6 +5,7 @@ using System.Text;
 using BuildDependencyReader.ProjectFileParser;
 using System.Diagnostics;
 using Common;
+using System.Text.RegularExpressions;
 
 namespace BuildDependencyReader.BuildDependencyResolver
 {
@@ -46,11 +47,22 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 System.IO.File.Copy(source, target, true);
             }
         }
-
-        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName)
+        
+        /// <summary>
+        /// <para>Builds the given solution. Steps:</para>
+        /// <para>1. Update dependencies (components) by copying all referenced assemblies from their building projects' output paths to the HintPath</para>
+        /// <para>2. Clean the solution</para>
+        /// <para>3. Build the solution</para>
+        /// <para>Use <paramref name="ignoredDependencyAssemblies"/> to ignore system and/or third party assemblies that are not part of the build tree (those that will not be found when the <paramref name="projectFinder"/> will search for a project that builds them)</para>
+        /// </summary>
+        /// <param name="projectFinder"></param>
+        /// <param name="solutionFileName"></param>
+        /// <param name="ignoredDependencyAssemblies">Patterns for dependent assemblies to ignore when trying to find a building project to copy from.</param>
+        /// <param name="ignoreAllButMatching">Flips the meaning of the ignored assemblies so that ALL assemblies will be ignored, EXCEPT the ones matching the given patterns</param>
+        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreAllButMatching)
         {
             _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
-            UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName);
+            UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreAllButMatching);
             _logger.InfoFormat("\tCleaning...");
             MSBuild(solutionFileName, "/t:clean");
             _logger.InfoFormat("\tBuilding...");
@@ -58,13 +70,25 @@ namespace BuildDependencyReader.BuildDependencyResolver
             _logger.InfoFormat("\tDone: '{0}'", solutionFileName);
         }
 
-        public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName)
+        public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreAllButMatching)
         {
             _logger.InfoFormat("\tCopying dependencies...");
-            Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder,
-                                                            projectFinder.GetProjectsOfSLN(solutionFileName)
-                                                                         .SelectMany(x => x.AssemblyReferences)
-                                                                         .Distinct());
+            Builder.CopyAssemblyReferencesFromBuiltProjects(
+                projectFinder,
+                projectFinder.GetProjectsOfSLN(solutionFileName)
+                                .SelectMany(x => x.AssemblyReferences)
+                                .Distinct()
+                                .Where(x => IncludeAssemblyWhenCopyingDeps(x, assemblyNamePatterns, ignoreAllButMatching)));
+        }
+
+        private static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreAllButMatching)
+        {
+            var isMatch = assemblyNamePatterns.Any(r => r.IsMatch(assemblyReference.Name));
+            if (ignoreAllButMatching)
+            {
+                return isMatch;
+            }
+            return false == isMatch;
         }
 
 
