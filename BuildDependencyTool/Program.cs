@@ -271,10 +271,6 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 message = "Base path does not exist: '" + optionValues.BasePath + "'";
             }
-            else if (optionValues.Build && optionValues.UpdateComponents)
-            {
-                message = "Can only specify one of: Build, Update components. But not both.";
-            }
 
             if (null != message)
             {
