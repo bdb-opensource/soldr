@@ -20,6 +20,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             foreach (var assemblyReference in assemblyReferences)
             {
                 var buildingProject = projectFinder.FindProjectForAssemblyReference(assemblyReference).SingleOrDefault();
+                // TODO: Include more information in the warnings: which projects use the assembly, which project builds it, etc.
                 if (null == buildingProject)
                 {
                     _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}'", assemblyReference);
@@ -58,11 +59,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="projectFinder"></param>
         /// <param name="solutionFileName"></param>
         /// <param name="ignoredDependencyAssemblies">Patterns for dependent assemblies to ignore when trying to find a building project to copy from.</param>
-        /// <param name="ignoreAllButMatching">Flips the meaning of the ignored assemblies so that ALL assemblies will be ignored, EXCEPT the ones matching the given patterns</param>
-        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreAllButMatching)
+        /// <param name="ignoreOnlyMatching">Flips the meaning of the ignored assemblies so that ALL assemblies will be ignored, EXCEPT the ones matching the given patterns</param>
+        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching)
         {
             _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
-            UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreAllButMatching);
+            UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching);
             _logger.InfoFormat("\tCleaning...");
             MSBuild(solutionFileName, "/t:clean");
             _logger.InfoFormat("\tBuilding...");
@@ -70,13 +71,13 @@ namespace BuildDependencyReader.BuildDependencyResolver
             _logger.InfoFormat("\tDone: '{0}'", solutionFileName);
         }
 
-        public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreAllButMatching)
+        public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
         {
             _logger.InfoFormat("\tCopying dependencies...");
             var assemblyReferences = projectFinder.GetProjectsOfSLN(solutionFileName)
                                                   .SelectMany(x => x.AssemblyReferences)
                                                   .Distinct();
-            var filtered = assemblyReferences.Split(x => IncludeAssemblyWhenCopyingDeps(x, assemblyNamePatterns, ignoreAllButMatching));
+            var filtered = assemblyReferences.Split(x => IncludeAssemblyWhenCopyingDeps(x, assemblyNamePatterns, ignoreOnlyMatching));
             foreach (var ignored in filtered.Value)
             {
                 _logger.InfoFormat("Not copying ignored assembly: '{0}'", ignored.ToString());
@@ -84,14 +85,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
             Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, filtered.Key);
         }
 
-        private static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreAllButMatching)
+        private static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
         {
-            var isMatch = assemblyNamePatterns.Any(r => r.IsMatch(assemblyReference.Name));
-            if (ignoreAllButMatching)
-            {
-                return isMatch;
-            }
-            return false == isMatch;
+            return BoolExtensions.Flip(assemblyNamePatterns.Any(r => r.IsMatch(assemblyReference.Name)), ignoreOnlyMatching);
         }
 
 

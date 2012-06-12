@@ -52,7 +52,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         public bool Build;
         public bool UpdateComponents;
         public int RecursionLevel = -1;
-        public Regex[] IgnoredAssemblyRegexes;
+        public Regex[] MatchingAssemblyRegexes;
         public bool FlipIgnore;
     }
 
@@ -76,6 +76,13 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             UpdateLog4NetLevel(optionValues.Verbose);
 
+            PerformCommands(exlcudedSlns, inputFiles, optionValues);
+
+            return 0;
+        }
+
+        private static void PerformCommands(List<string> exlcudedSlns, List<string> inputFiles, OptionValues optionValues)
+        {
             var projectFinder = new ProjectFinder(optionValues.BasePath, true);
             var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.GetDependencyInfo(projectFinder, inputFiles, exlcudedSlns, optionValues.RecursionLevel);
 
@@ -98,7 +105,6 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 PerformBuild(projectFinder, dependencyInfo, optionValues);
             }
 
-            return 0;
         }
 
         protected static void UpdateLog4NetLevel(bool verbose)
@@ -124,12 +130,12 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))
                 {
-                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.IgnoredAssemblyRegexes, optionValues.FlipIgnore);
+                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
                 }
             }
             foreach (var solutionFileName in sortedSolutions.Where(x => false == graph.OutEdges(x).Any()))
             {
-                Builder.UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, optionValues.IgnoredAssemblyRegexes, optionValues.FlipIgnore);
+                Builder.UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
             }
         }
 
@@ -137,7 +143,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.IgnoredAssemblyRegexes, optionValues.FlipIgnore);
+                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
             }
         }
 
@@ -166,7 +172,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             optionValues.GenerateGraphviz = false;
             optionValues.Build = false;
             optionValues.PrintSolutionBuildOrder = false;
-            var ignoredAssemblies = new List<Regex>();
+            var assemblyMatchPatterns = new List<Regex>();
 
             var options = new OptionSet();
             options.Add("b|base-path=",
@@ -188,11 +194,11 @@ namespace BuildDependencyReader.PrintProjectDependencies
             options.Add("x|exclude=", 
                         "Exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
                         x => exlcudedSlns.Add(x));
-            options.Add("i=|ignore-assembly=",
-                        "Ignore assemblies matching the given regex pattern (case insensitive). May be given multiple times to accumulate patterns.",
-                        x => ignoredAssemblies.Add(new Regex(x, RegexOptions.IgnoreCase)));
+            options.Add("m=|match-assembly=",
+                        "Ignore all assemblies except those matching the given regex pattern (case insensitive). May be given multiple times to accumulate patterns. Useful for ignoring system and third-party assemblies.",
+                        x => assemblyMatchPatterns.Add(new Regex(x, RegexOptions.IgnoreCase)));
             options.Add("flip-ignore",
-                        "Flips the meaning of ignore-assembly (-i) to ignore everything EXCEPT the matched patterns",
+                        "Flips the meaning of match-assembly (-m) to ignore ONLY the matched patterns, and not ignore anything that doesn't match.",
                         x => optionValues.FlipIgnore = (null != x));
             options.Add("v|verbose",
                         "Print verbose output (will go to stderr)",
@@ -213,7 +219,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 errorMessage = e.Message;
             }
-            optionValues.IgnoredAssemblyRegexes = ignoredAssemblies.ToArray();
+            optionValues.MatchingAssemblyRegexes = assemblyMatchPatterns.ToArray();
             return ValidateOptions(optionValues, userRequestsHelp, options, errorMessage);
         }
 

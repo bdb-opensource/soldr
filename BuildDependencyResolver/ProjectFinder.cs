@@ -41,6 +41,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
             this.MapSLNsToProjects();
         }
 
+        public IEnumerable<Project> AllProjectsInPath()
+        {
+            return this._projects;
+        }
+
         public IEnumerable<Project> FindProjectForAssemblyReference(AssemblyReference assemblyReference)
         {
             if (null == this._mapAssemblyReferenceToProject)
