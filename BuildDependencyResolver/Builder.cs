@@ -28,10 +28,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="solutionFileName"></param>
         /// <param name="ignoredDependencyAssemblies">Patterns for dependent assemblies to ignore when trying to find a building project to copy from.</param>
         /// <param name="ignoreOnlyMatching">Flips the meaning of the ignored assemblies so that ALL assemblies will be ignored, EXCEPT the ones matching the given patterns</param>
-        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching)
+        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching, bool ignoreMissing)
         {
             _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
-            UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching);
+            UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching, ignoreMissing);
             ValidateSolutionReadyForBuild(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching);
             _logger.InfoFormat("\tCleaning...");
             MSBuild(solutionFileName, "/t:clean");
@@ -49,13 +49,13 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
         }
 
-        public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
+        public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, bool ignoreMissing)
         {
             _logger.InfoFormat("\tCopying dependencies...");
             var assemblyReferences = projectFinder.GetProjectsOfSLN(solutionFileName)
                                                   .SelectMany(x => x.AssemblyReferences)
                                                   .Distinct();
-            Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, assemblyNamePatterns, ignoreOnlyMatching, assemblyReferences);
+            Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, assemblyNamePatterns, ignoreOnlyMatching, assemblyReferences, ignoreMissing);
         }
 
         protected static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
@@ -101,7 +101,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         }
 
         public static void CopyAssemblyReferencesFromBuiltProjects(
-            IProjectFinder projectFinder, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, IEnumerable<AssemblyReference> assemblyReferences)
+            IProjectFinder projectFinder, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, IEnumerable<AssemblyReference> assemblyReferences, bool ignoreMissing)
         {
             // TODO: Refactor this mess, and save for each indirect reference the dependency path that caused it to be included in a unified way
 
@@ -136,9 +136,14 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     continue;
                 }
 
+                if (ignoreMissing && (false == System.IO.Directory.Exists(buildingProject.GetAbsoluteOutputPath())))
+                {
+                    _logger.InfoFormat("Ignoring (not copying) all components from not-built project: {0}", buildingProject.ToString());
+                    continue;
+                }
                 var projectOutputs = buildingProject.GetBuiltProjectOutputs().ToArray();
 
-                CopyFilesToDirectory(projectOutputs, targetPath);
+                CopyFilesToDirectory(projectOutputs, targetPath, ignoreMissing);
 
                 // Add sub-references - the indirectly referenced assemblies, the ones used by the current assemblyReference
                 var explicitTargetPath = System.IO.Path.GetDirectoryName(assemblyReference.ExplicitHintPath);
@@ -242,14 +247,18 @@ namespace BuildDependencyReader.BuildDependencyResolver
                                                         .Select(x => x.ToString()));
         }
 
-        protected static void CopyFilesToDirectory(IEnumerable<FileInfo> files, string targetPath)
+        protected static void CopyFilesToDirectory(IEnumerable<FileInfo> files, string targetPath, bool ignoreMissing)
         {
             foreach (var file in files)
             {
                 var source = file.FullName;
                 var target = System.IO.Path.Combine(targetPath, file.Name);
 
-                _logger.InfoFormat("copying {0} -> {1}...", source, target);
+                if (ignoreMissing && (false == System.IO.File.Exists(source)))
+                {
+                    _logger.InfoFormat("copy: ignoring missing file, not copying: {0} -> {1}...", source, target);
+                }
+                _logger.InfoFormat("copy: {0} -> {1}...", source, target);
                 System.IO.Directory.CreateDirectory(targetPath);
                 System.IO.File.Copy(source, target, true);
             }

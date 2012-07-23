@@ -55,6 +55,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         public int RecursionLevel = -1;
         public Regex[] MatchingAssemblyRegexes;
         public bool FlipIgnore;
+        public bool IgnoreMissingAssemblies;
     }
 
     class Program
@@ -159,12 +160,12 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))
                 {
-                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
+                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies);
                 }
             }
             foreach (var solutionFileName in sortedSolutions.Where(x => false == graph.OutEdges(x).Any()))
             {
-                Builder.UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
+                Builder.UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies);
             }
         }
 
@@ -172,7 +173,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore);
+                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies);
             }
         }
 
@@ -229,6 +230,9 @@ namespace BuildDependencyReader.PrintProjectDependencies
             options.Add("flip-ignore",
                         "Flips the meaning of match-assembly (-m) to ignore ONLY the matched patterns, and not ignore anything that doesn't match.",
                         x => optionValues.FlipIgnore = (null != x));
+            options.Add("ignore-missing",
+                        "When copying dependency assemblies (components), ignore those that are missing - meaning, the ones that can't be copied because the compiled assembly file to be copied is not found.",
+                        x => optionValues.IgnoreMissingAssemblies = (null != x));
             options.Add("v|verbose",
                         "Print verbose output (will go to stderr)",
                         x => optionValues.Verbose = (null != x));

@@ -129,14 +129,19 @@ namespace BuildDependencyReader.ProjectFileParser
         protected IEnumerable<FileInfo> GetBuiltProjectOutputsWithoutCyclicProtection(bool includeDependencies)
         {
             this.ValidateDefaultConfiguration();
-            var directoryInfo = new DirectoryInfo(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path), 
-                                                  this.DefaultConfiguration.Value.OutputPath));
+            var directoryInfo = new DirectoryInfo(GetAbsoluteOutputPath());
             var outputs = directoryInfo.EnumerateFiles();
             if (includeDependencies) {
                 return outputs;
             }
             return outputs.Where(f => (false == ExistsAssemblyReferenceWithName(f.Name))
                                    && (false == ExistsReferencedProjectOutputWithName(f.Name)));
+        }
+
+        public string GetAbsoluteOutputPath()
+        {
+            return System.IO.Path.Combine(System.IO.Path.GetDirectoryName(this.Path),
+                                                              this.DefaultConfiguration.Value.OutputPath);
         }
 
         /// <summary>
