@@ -73,7 +73,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
             FileInfo slnFileInfo;
             if (false == this._mapProjectToSLN.TryGetValue(project, out slnFileInfo))
             {
-                throw new ArgumentException("No .sln found for project: " + project);
+                var errorMessage = "No .sln found for project: " + project;
+                _logger.Error(errorMessage);
+                throw new ArgumentException(errorMessage, "project");
             }
             return slnFileInfo;
         }
@@ -111,7 +113,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     {
                         if (this._mapProjectToSLN.ContainsKey(project))
                         {
-                            throw new Exception(String.Format("Project {0} has ambiguous SLN {1}, {2}: ", project.Path, slnFileInfo.FullName, this._mapProjectToSLN[project].FullName));
+                            var errorMessage = String.Format("Project {0} has ambiguous SLN {1}, {2}: ", project.Path, slnFileInfo.FullName, this._mapProjectToSLN[project].FullName);
+                            _logger.Error(errorMessage);
+                            throw new Exception(errorMessage);
                         }
                         this._mapProjectToSLN.Add(project, slnFileInfo);
                     }
@@ -130,9 +134,13 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
             var message = "Multiple projects with same name found - cannot realiably calculate assembly dependencies:\n"
                           + StringExtensions.Tabify(collidingProjects.Select(CollidingProjectsDescriptionString));
-            _logger.WarnFormat("" + message);
-            if (false == allowAssemblyProjectAmbiguities)
+            if (allowAssemblyProjectAmbiguities)
             {
+                _logger.Warn(message);
+            } 
+            else 
+            {
+                _logger.Error(message);
                 throw new ArgumentException(message);
             }
         }
@@ -146,7 +154,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
         {
             if (false == System.IO.Directory.Exists(searchRootPath))
             {
-                throw new ArgumentException("Directory does not exist: " + searchRootPath);
+                var errorMessage = "Directory does not exist: " + searchRootPath;
+                _logger.Error(errorMessage);
+                throw new ArgumentException(errorMessage);
             }
         }
 

@@ -156,9 +156,11 @@ namespace BuildDependencyReader.ProjectFileParser
                     .ToArray();
             if (invalidHintPathAssemblies.Any())
             {
-                throw new Exception(String.Format("Found assembly references with empty HintPaths in project '{0}'. Assembly references:\n{1}",
-                    this.ToString(),
-                    StringExtensions.Tabify(invalidHintPathAssemblies.Select(x => x.ToString()))));
+                var errorMessage = String.Format("Found assembly references with empty HintPaths in project '{0}'. Assembly references:\n{1}",
+                                                 this.ToString(),
+                                                 StringExtensions.Tabify(invalidHintPathAssemblies.Select(x => x.ToString())));
+                _logger.Error(errorMessage);
+                throw new Exception(errorMessage);
 
             }
         }
@@ -173,6 +175,9 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 if (false == File.Exists(assemblyReference.HintPath))
                 {
+                    var errorMessage = String.Format("Assembly reference HintPath does not exist. (Assembly reference: '{0}', HintPath: {1}, Project: {2})",
+                                                     assemblyReference.Name, assemblyReference.HintPath, this.Name);
+                    _logger.Error(errorMessage);
                     throw new AssemblyReferenceHintPathDoesNotExist(assemblyReference.Name, assemblyReference.HintPath, this.Name);
                 }
             }
@@ -187,14 +192,18 @@ namespace BuildDependencyReader.ProjectFileParser
             // should only be done when trying to access the build outputs?
             if (false == this.DefaultConfiguration.HasValue)
             {
-                throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the project has no matching default configuration (Project = {0})",
-                                                  this));
+                var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the project has no matching default configuration (Project = {0})",
+                                                  this);
+                _logger.Error(errorMessage);
+                throw new Exception(errorMessage);
             }
             // TODO: If there IS a default config, this part of the validation should probably ALWAYS be done (in the constructor or something).
             if (String.IsNullOrWhiteSpace(this.DefaultConfiguration.Value.OutputPath))
             {
-                throw new Exception(String.Format("Can't resolve build path from which to fetch project outputs because the default configuration '{1}' has no output path set (Project = {0})",
-                                                  this, this.DefaultConfiguration.Value));
+                var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the default configuration '{1}' has no output path set (Project = {0})",
+                                                  this, this.DefaultConfiguration.Value);
+                _logger.Error(errorMessage);
+                throw new Exception(errorMessage);
             }
         }
 
@@ -214,7 +223,9 @@ namespace BuildDependencyReader.ProjectFileParser
         {
             if (false == File.Exists(filePath))
             {
-                throw new ArgumentException(String.Format("File does not exist: '{0}'", filePath));
+                var errorMessage = String.Format("File does not exist: '{0}'", filePath);
+                _logger.Error(errorMessage);
+                throw new ArgumentException(errorMessage, "filePath");
             }
         }
 
@@ -240,7 +251,10 @@ namespace BuildDependencyReader.ProjectFileParser
             }
             catch (Exception e)
             {
-                throw new Exception("Error while trying to process project from path: " + fullPath, e);
+                var errorMessage = "Error when trying to process project from path: " + fullPath;
+                _logger.Error(errorMessage);
+                _logger.Info("Exception details:", e);
+                throw new Exception(errorMessage, e);
             }
         }
 
@@ -297,8 +311,10 @@ namespace BuildDependencyReader.ProjectFileParser
             var match = CONFIG_PLATFORM_REGEX.Match(conditionAttr.Value);
             if ((false == match.Success) || String.IsNullOrWhiteSpace(match.Groups["config"].Value))
             {
-                throw new Exception(String.Format("Failed to parse configuration Condition attribute: '{0}'. Match was: '{1}'.",
-                                                    conditionAttr, match));
+                var errorMessage = String.Format("Failed to parse configuration Condition attribute: '{0}'. Match was: '{1}'.",
+                                                 conditionAttr, match);
+                _logger.Error(errorMessage);
+                throw new Exception(errorMessage);
             }
             var outputPath = configurationPropertyGroupElement.Descendants(CSProjNamespace + "OutputPath")
                                                     .Single()
@@ -322,7 +338,11 @@ namespace BuildDependencyReader.ProjectFileParser
                                              .ToArray();
             if (1 < hintPathNodes.Length)
             {
-                throw new AssemblyReferenceMultipleHintPaths(assemblyName, String.Join(",", hintPathNodes.Select(x => x.Value)), projectFileName);
+                var hintPaths = String.Join(",", hintPathNodes.Select(x => x.Value));
+                var errorMessage = String.Format("Assembly reference has more than one HintPath (Assembly reference: '{0}', HintPaths:\n\t{1}",
+                                                 assemblyName, hintPaths);
+                _logger.Error(errorMessage);
+                throw new AssemblyReferenceMultipleHintPaths(assemblyName, hintPaths, projectFileName);
             }
             var hintPathNode = hintPathNodes.SingleOrDefault();
 
@@ -346,6 +366,9 @@ namespace BuildDependencyReader.ProjectFileParser
             }
             catch (Exception e)
             {
+                var errorMessage = "Error when trying to resolve referenced project: " + absoluteFilePath;
+                _logger.Error(errorMessage);
+                _logger.Info("Exception details:", e);
                 throw new ArgumentException("Error when trying to resolve referenced project: " + absoluteFilePath, e);
             }
             return project;

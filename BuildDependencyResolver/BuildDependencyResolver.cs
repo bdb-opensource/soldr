@@ -72,7 +72,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
             if (excludedSLNs.Any(x => false == SLN_EXTENSION.Equals(System.IO.Path.GetExtension(x))))
             {
-                throw new ArgumentException("excluded files must have extension: " + SLN_EXTENSION, "_excludedSLNs");
+                var errorMessage = "excluded files must have extension: " + SLN_EXTENSION;
+                _logger.Error(errorMessage);
+                throw new ArgumentException(errorMessage, "_excludedSLNs");
             }
 
             var csprojProjects = projectFiles.Select(Project.FromCSProj);
@@ -182,7 +184,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
                         break;
 
                     default:
-                        throw new ArgumentException(String.Format("Unknown file type: '{0}' in {1}", extensionGroup.Key, String.Join(", ", extensionGroup)), "_inputFiles");
+                        {
+                            var errorMessage = String.Format("Unknown file type: '{0}' in {1}", extensionGroup.Key, String.Join(", ", extensionGroup));
+                            _logger.Error(errorMessage);
+                            throw new ArgumentException(errorMessage, "_inputFiles");
+                        }
                 }
             }
         }

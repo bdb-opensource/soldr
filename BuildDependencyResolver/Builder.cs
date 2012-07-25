@@ -82,7 +82,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
             process.WaitForExit();
             if (0 != process.ExitCode)
             {
-                throw new Exception("Build failed: " + solutionFileName);
+                var errorMessage = "Build failed: " + solutionFileName;
+                _logger.Error(errorMessage);
+                throw new Exception(errorMessage);
             }
         }
 

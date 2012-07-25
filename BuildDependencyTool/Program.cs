@@ -78,7 +78,16 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             UpdateLog4NetLevel(optionValues.Verbose);
 
-            PerformCommands(exlcudedSlns, inputFiles, optionValues);
+            try
+            {
+                PerformCommands(exlcudedSlns, inputFiles, optionValues);
+            }
+            catch (Exception e)
+            {
+                _logger.Error("Error reached top-level. To view exception stack trace and details use verbose (-v) flag");
+                _logger.Info("Error reached top-level, details:\n", e);
+                return 2;
+            }
 
             return 0;
         }
@@ -122,7 +131,9 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 if (System.IO.Path.IsPathRooted(assemblyReference.ExplicitHintPath))
                 {
-                    throw new Exception(String.Format("Absolute path found in HintPath in assembly reference '{0}', project: '{1}' (will break easily when trying to compile on another machine!)", assemblyReference, project));
+                    var errorMessage = String.Format("Absolute path found in HintPath in assembly reference '{0}', project: '{1}' (will break easily when trying to compile on another machine!)", assemblyReference, project);
+                    _logger.Error(errorMessage);
+                    throw new Exception(errorMessage);
                 }
                 var hintPathPrefix = PathExtensions.GetFullPath(assemblyReference.HintPath.Trim())
                                                    .Substring(0, basePath.Length);
@@ -130,9 +141,11 @@ namespace BuildDependencyReader.PrintProjectDependencies
                         hintPathPrefix, 
                         StringComparison.InvariantCultureIgnoreCase))
                 {
-                    throw new Exception(String.Format(
+                    var errorMessage = String.Format(
                         "HintPath is outside the given base path for finding projects in assembly reference '{0}', project: '{1}', base path: '{2}' expected to equal the prefix of the hint path: '{3}'",
-                        assemblyReference, project, basePath, hintPathPrefix));
+                        assemblyReference, project, basePath, hintPathPrefix);
+                    _logger.Error(errorMessage);
+                    throw new Exception(errorMessage);
                 }
             }
         }
