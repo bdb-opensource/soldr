@@ -132,8 +132,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 if (System.IO.Path.IsPathRooted(assemblyReference.ExplicitHintPath))
                 {
                     var errorMessage = String.Format("Absolute path found in HintPath in assembly reference '{0}', project: '{1}' (will break easily when trying to compile on another machine!)", assemblyReference, project);
-                    _logger.Error(errorMessage);
-                    throw new Exception(errorMessage);
+                    _logger.Warn(errorMessage);
                 }
                 var hintPathPrefix = PathExtensions.GetFullPath(assemblyReference.HintPath.Trim())
                                                    .Substring(0, basePath.Length);
@@ -144,8 +143,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
                     var errorMessage = String.Format(
                         "HintPath is outside the given base path for finding projects in assembly reference '{0}', project: '{1}', base path: '{2}' expected to equal the prefix of the hint path: '{3}'",
                         assemblyReference, project, basePath, hintPathPrefix);
-                    _logger.Error(errorMessage);
-                    throw new Exception(errorMessage);
+                    _logger.Warn(errorMessage);
                 }
             }
         }

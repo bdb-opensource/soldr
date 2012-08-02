@@ -165,9 +165,7 @@ namespace BuildDependencyReader.ProjectFileParser
                 var errorMessage = String.Format("Found assembly references with empty HintPaths in project '{0}'. Assembly references:\n{1}",
                                                  this.ToString(),
                                                  StringExtensions.Tabify(invalidHintPathAssemblies.Select(x => x.ToString())));
-                _logger.Error(errorMessage);
-                throw new Exception(errorMessage);
-
+                _logger.Warn(errorMessage);
             }
         }
 
@@ -258,8 +256,7 @@ namespace BuildDependencyReader.ProjectFileParser
             catch (Exception e)
             {
                 var errorMessage = "Error when trying to process project from path: " + fullPath;
-                _logger.Warn(errorMessage);
-                _logger.Info("Exception details:", e);
+                _logger.Info(errorMessage, e);
                 throw new Exception(errorMessage, e);
             }
         }
@@ -373,8 +370,7 @@ namespace BuildDependencyReader.ProjectFileParser
             catch (Exception e)
             {
                 var errorMessage = "Error when trying to resolve referenced project: " + absoluteFilePath;
-                _logger.Warn(errorMessage);
-                _logger.Info("Exception details:", e);
+                _logger.Info(errorMessage, e);
                 throw new ArgumentException("Error when trying to resolve referenced project: " + absoluteFilePath, e);
             }
             return project;
