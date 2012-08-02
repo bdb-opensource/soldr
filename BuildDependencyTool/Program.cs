@@ -238,7 +238,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
                         "Exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
                         x => exlcudedSlns.Add(x));
             options.Add("m=|match-assembly=",
-                        "Ignore all assemblies except those matching the given regex pattern (case insensitive). May be given multiple times to accumulate patterns. Useful for ignoring system and third-party assemblies.",
+                        "When finding dependencies and copying components, ignore ALL referenced assemblies EXCEPT those matching the given regex pattern (case insensitive). May be given multiple times to accumulate patterns. Useful for ignoring system and third-party assemblies.",
                         x => assemblyMatchPatterns.Add(new Regex(x, RegexOptions.IgnoreCase)));
             options.Add("flip-ignore",
                         "Flips the meaning of match-assembly (-m) to ignore ONLY the matched patterns, and not ignore anything that doesn't match.",

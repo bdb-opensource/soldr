@@ -60,7 +60,12 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         protected static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
         {
-            return BoolExtensions.Flip(assemblyNamePatterns.Any(r => r.IsMatch(assemblyReference.Name)), ignoreOnlyMatching);
+            if (assemblyNamePatterns.Any())
+            {
+                return BoolExtensions.Flip(assemblyNamePatterns.Any(r => r.IsMatch(assemblyReference.Name)), ignoreOnlyMatching);
+            }
+            // when no patterns are given, include all assemblies (don't filter)
+            return true;
         }
 
 

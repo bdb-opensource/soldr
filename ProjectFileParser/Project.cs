@@ -151,9 +151,15 @@ namespace BuildDependencyReader.ProjectFileParser
         public void ValidateHintPaths(Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
         {
             var invalidHintPathAssemblies = this.AssemblyReferences
-                    .Where(x => String.IsNullOrWhiteSpace(x.HintPath))
-                    .Where(x => BoolExtensions.Flip(assemblyNamePatterns.Any(r => r.IsMatch(x.Name)), ignoreOnlyMatching))
-                    .ToArray();
+                                                .Where(x => String.IsNullOrWhiteSpace(x.HintPath));
+            if (assemblyNamePatterns.Any())
+            {
+                // Filter assemblies only if some patterns were given. 
+                invalidHintPathAssemblies = invalidHintPathAssemblies
+                    .Where(x => BoolExtensions.Flip(assemblyNamePatterns.Any(r => r.IsMatch(x.Name)), ignoreOnlyMatching));
+
+            }
+
             if (invalidHintPathAssemblies.Any())
             {
                 var errorMessage = String.Format("Found assembly references with empty HintPaths in project '{0}'. Assembly references:\n{1}",
