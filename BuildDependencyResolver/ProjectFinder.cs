@@ -120,21 +120,22 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     var quotedProjectFilePath = match.Value;
                     var projectFilePath = Project.ResolvePath(slnFileInfo.DirectoryName, quotedProjectFilePath.Substring(1, quotedProjectFilePath.Length - 2));
                     var project = this._projects.Where(x => x.Path.Equals(projectFilePath, StringComparison.InvariantCultureIgnoreCase)).SingleOrDefault();
+                    if (null == project)
+                    {
+                        continue;
+                    }
                     if (false == project.Path.ToLowerInvariant().Contains(slnFileInfo.DirectoryName.ToLowerInvariant()))
                     {
                         _logger.WarnFormat("Skipping potential mapping to SLN file {0} because it is not in a parent directory of the project {1}", slnFileInfo.FullName, project.Path);
                         continue;
                     }
-                    if (null != project)
+                    if (this._mapProjectToSLN.ContainsKey(project))
                     {
-                        if (this._mapProjectToSLN.ContainsKey(project))
-                        {
-                            var errorMessage = String.Format("Project {0} has ambiguous SLN {1}, {2}: ", project.Path, slnFileInfo.FullName, this._mapProjectToSLN[project].FullName);
-                            _logger.Error(errorMessage);
-                            throw new Exception(errorMessage);
-                        }
-                        this._mapProjectToSLN.Add(project, slnFileInfo);
+                        var errorMessage = String.Format("Project {0} has ambiguous SLN {1}, {2}: ", project.Path, slnFileInfo.FullName, this._mapProjectToSLN[project].FullName);
+                        _logger.Error(errorMessage);
+                        throw new Exception(errorMessage);
                     }
+                    this._mapProjectToSLN.Add(project, slnFileInfo);
                 }
             }
         }
