@@ -195,11 +195,23 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         protected static void PrintInputInfo(string[] excludedSLNs, IEnumerable<string> projectFiles, IEnumerable<string> slnFiles, Project[] projects)
         {
-            _logger.InfoFormat("Input CSPROJ files:\n" + StringExtensions.Tabify(projectFiles));
-            _logger.InfoFormat("Input SLN files:\n" + StringExtensions.Tabify(slnFiles));
-            _logger.InfoFormat("Input projects:\n" + StringExtensions.Tabify(projects.Select(x => x.Path)));
+            if (projectFiles.Any())
+            {
+                _logger.InfoFormat("Input CSPROJ files:\n" + StringExtensions.Tabify(projectFiles));
+            }
+            if (slnFiles.Any())
+            {
+                _logger.InfoFormat("Input SLN files:\n" + StringExtensions.Tabify(slnFiles));
+            }
+            if (projects.Any())
+            {
+                _logger.InfoFormat("Input projects:\n" + StringExtensions.Tabify(projects.Select(x => x.Path)));
+            }
 
-            _logger.InfoFormat("Excluding solutions:\n" + StringExtensions.Tabify(excludedSLNs));
+            if (excludedSLNs.Any())
+            {
+                _logger.InfoFormat("Excluding solutions:\n" + StringExtensions.Tabify(excludedSLNs));
+            }
         }
 
 

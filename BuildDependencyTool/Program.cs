@@ -157,9 +157,22 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
         protected static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
         {
-            foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
+            foreach (var solutionFileName in GetDependencySortedSolutionNames(dependencyInfo))
             {
                 Console.WriteLine(solutionFileName);
+            }
+        }
+
+        private static IEnumerable<string> GetDependencySortedSolutionNames(BuildDependencyInfo dependencyInfo)
+        {
+            try
+            {
+                return dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort();
+            }
+            catch (NonAcyclicGraphException)
+            {
+                _logger.Error("Can't resolve solution dependencies because there is a cyclic dependency somewhere in the graph. Use the graph output option for more information on the dependecy graph.");
+                throw;
             }
         }
 
@@ -247,8 +260,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
             options.Add("v|verbose",
                         "Print verbose output (will go to stderr)",
                         x => optionValues.Verbose = (null != x));
-            options.Add("g|graphviz",
-                        "Generate graphviz output",
+            options.Add("g|graph",
+                        "Generate dependency graph output (requires GraphViz)",
                         x => optionValues.GenerateGraphviz = (null != x));
             options.Add("h|help", 
                         "Show help", 
