@@ -211,8 +211,12 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             var fileName = System.IO.Path.GetTempFileName() + ".svg";
             var outFileName = graphviz.Generate(new DotEngine(), fileName);
-            _logger.InfoFormat("GraphViz Output to: " + fileName);
-            Console.Error.WriteLine("GraphViz Output to: " + fileName);
+            _logger.InfoFormat("Dependency graph written to: " + fileName);
+            Console.Error.WriteLine("Dependency graph written to: " + fileName);
+            if (Environment.UserInteractive)
+            {
+                Process.Start(fileName);
+            }
         }
 
         
