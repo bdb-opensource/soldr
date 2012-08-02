@@ -7,12 +7,12 @@ using System.Runtime.Serialization;
 namespace BuildDependencyReader.ProjectFileParser
 {
     [Serializable]
-    public class AssemblyReferenceHintPathDoesNotExist : Exception
+    public class AssemblyReferenceHintPathDoesNotExistException : Exception
     {
-        protected AssemblyReferenceHintPathDoesNotExist() : base() { }
-        public AssemblyReferenceHintPathDoesNotExist(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected AssemblyReferenceHintPathDoesNotExistException() : base() { }
+        public AssemblyReferenceHintPathDoesNotExistException(SerializationInfo info, StreamingContext context) : base(info, context) { }
 
-        public AssemblyReferenceHintPathDoesNotExist(string assemblyName, string hintPath, string containingProjectFile)
+        public AssemblyReferenceHintPathDoesNotExistException(string assemblyName, string hintPath, string containingProjectFile)
             : base(String.Format("Assembly Reference '{0}' has a bad HintPath - the file does not exist: '{1}' (in project {2})",
                                  assemblyName,
                                  hintPath,
@@ -22,12 +22,12 @@ namespace BuildDependencyReader.ProjectFileParser
     }
 
     [Serializable]
-    public class AssemblyReferenceMultipleHintPaths : Exception
+    public class AssemblyReferenceMultipleHintPathsException : Exception
     {
-        protected AssemblyReferenceMultipleHintPaths() : base() { }
-        public AssemblyReferenceMultipleHintPaths(SerializationInfo info, StreamingContext context) : base(info, context) { }
+        protected AssemblyReferenceMultipleHintPathsException() : base() { }
+        public AssemblyReferenceMultipleHintPathsException(SerializationInfo info, StreamingContext context) : base(info, context) { }
 
-        public AssemblyReferenceMultipleHintPaths(string assemblyName, string hintPath, string containingProjectFile)
+        public AssemblyReferenceMultipleHintPathsException(string assemblyName, string hintPath, string containingProjectFile)
             : base(String.Format("Assembly Reference '{0}' has a multiple HintPaths: '{1}' (in project {2})",
                                  assemblyName,
                                  hintPath,
@@ -36,4 +36,11 @@ namespace BuildDependencyReader.ProjectFileParser
         }
     }
 
+    [Serializable]
+    public class InvalidDefaultConfigurationException : Exception
+    {
+        protected InvalidDefaultConfigurationException() : base() { }
+        public InvalidDefaultConfigurationException(string message) : base(message) { }
+        public InvalidDefaultConfigurationException(SerializationInfo info, StreamingContext context) : base(info, context) { }
+    }
 }

@@ -184,7 +184,7 @@ namespace BuildDependencyReader.ProjectFileParser
                     var errorMessage = String.Format("Assembly reference HintPath does not exist. (Assembly reference: '{0}', HintPath: {1}, Project: {2})",
                                                      assemblyReference.Name, assemblyReference.HintPath, this.Name);
                     _logger.Error(errorMessage);
-                    throw new AssemblyReferenceHintPathDoesNotExist(assemblyReference.Name, assemblyReference.HintPath, this.Name);
+                    throw new AssemblyReferenceHintPathDoesNotExistException(assemblyReference.Name, assemblyReference.HintPath, this.Name);
                 }
             }
         }
@@ -200,16 +200,16 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the project has no matching default configuration (Project = {0})",
                                                   this);
-                _logger.Error(errorMessage);
-                throw new Exception(errorMessage);
+                _logger.Warn(errorMessage);
+                throw new InvalidDefaultConfigurationException(errorMessage);
             }
             // TODO: If there IS a default config, this part of the validation should probably ALWAYS be done (in the constructor or something).
             if (String.IsNullOrWhiteSpace(this.DefaultConfiguration.Value.OutputPath))
             {
                 var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the default configuration '{1}' has no output path set (Project = {0})",
                                                   this, this.DefaultConfiguration.Value);
-                _logger.Error(errorMessage);
-                throw new Exception(errorMessage);
+                _logger.Warn(errorMessage);
+                throw new InvalidDefaultConfigurationException(errorMessage);
             }
         }
 
@@ -258,7 +258,7 @@ namespace BuildDependencyReader.ProjectFileParser
             catch (Exception e)
             {
                 var errorMessage = "Error when trying to process project from path: " + fullPath;
-                _logger.Error(errorMessage);
+                _logger.Warn(errorMessage);
                 _logger.Info("Exception details:", e);
                 throw new Exception(errorMessage, e);
             }
@@ -348,7 +348,7 @@ namespace BuildDependencyReader.ProjectFileParser
                 var errorMessage = String.Format("Assembly reference has more than one HintPath (Assembly reference: '{0}', HintPaths:\n\t{1}",
                                                  assemblyName, hintPaths);
                 _logger.Error(errorMessage);
-                throw new AssemblyReferenceMultipleHintPaths(assemblyName, hintPaths, projectFileName);
+                throw new AssemblyReferenceMultipleHintPathsException(assemblyName, hintPaths, projectFileName);
             }
             var hintPathNode = hintPathNodes.SingleOrDefault();
 
@@ -373,7 +373,7 @@ namespace BuildDependencyReader.ProjectFileParser
             catch (Exception e)
             {
                 var errorMessage = "Error when trying to resolve referenced project: " + absoluteFilePath;
-                _logger.Error(errorMessage);
+                _logger.Warn(errorMessage);
                 _logger.Info("Exception details:", e);
                 throw new ArgumentException("Error when trying to resolve referenced project: " + absoluteFilePath, e);
             }

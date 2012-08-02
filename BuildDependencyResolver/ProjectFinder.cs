@@ -17,7 +17,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         protected string _searchRootPath;
         protected HashSet<FileInfo> _CSProjFileInfos;
         protected HashSet<FileInfo> _SLNFileInfos;
-        protected Project[] _projects;
+        protected List<Project> _projects = new List<Project>();
         protected Dictionary<Project, FileInfo> _mapProjectToSLN = new Dictionary<Project, FileInfo>();
         protected Dictionary<string, IEnumerable<Project>> _mapAssemblyReferenceToProject;
 
@@ -31,14 +31,30 @@ namespace BuildDependencyReader.BuildDependencyResolver
             var directoryInfo = new DirectoryInfo(this._searchRootPath);
             this._SLNFileInfos = new HashSet<FileInfo>(directoryInfo.EnumerateFiles("*.sln", System.IO.SearchOption.AllDirectories));
             this._CSProjFileInfos = new HashSet<FileInfo>(directoryInfo.EnumerateFiles("*.csproj", System.IO.SearchOption.AllDirectories));
-
-            this._projects = this._CSProjFileInfos
-                                 .Select(x => Project.FromCSProj(x.FullName))
-                                 .ToArray();
+            this.AddAllProjects();
 
             this.CheckForAssemblyProjectAmbiguities(allowAssemblyProjectAmbiguities);
 
             this.MapSLNsToProjects();
+        }
+
+        private void AddAllProjects()
+        {
+            foreach (var csProjFileInfo in this._CSProjFileInfos)
+            {
+                Project project;
+                try
+                {
+                    project = Project.FromCSProj(csProjFileInfo.FullName);
+                }
+                catch (Exception e)
+                {
+                    _logger.WarnFormat("Skipping project because there was an error while trying to process the .csproj file ({0})", csProjFileInfo.FullName);
+                    _logger.Info("Skipping project due to exception:", e);
+                    continue;
+                }
+                this._projects.Add(project);
+            }
         }
 
         public IEnumerable<Project> AllProjectsInPath()

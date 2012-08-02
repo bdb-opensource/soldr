@@ -148,8 +148,8 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     _logger.InfoFormat("Ignoring (not copying) all components from not-built project: {0}", buildingProject.ToString());
                     continue;
                 }
-                var projectOutputs = buildingProject.GetBuiltProjectOutputs().ToArray();
 
+                var projectOutputs = buildingProject.GetBuiltProjectOutputs().ToArray();
                 CopyFilesToDirectory(projectOutputs, targetPath, ignoreMissing);
 
                 // Add sub-references - the indirectly referenced assemblies, the ones used by the current assemblyReference
