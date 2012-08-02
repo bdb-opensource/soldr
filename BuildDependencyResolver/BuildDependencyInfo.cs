@@ -24,7 +24,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         public BuildDependencyInfo(AdjacencyGraph<Project, SEdge<Project>> _fullProjectDependencyGraph, AdjacencyGraph<string, SEdge<string>> _solutionDependencyGraph, string[] excludedSLNs)
         {
-            // TODO: Complete member initialization
             this.FullProjectDependencyGraph = _fullProjectDependencyGraph;
             this.SolutionDependencyGraph = _solutionDependencyGraph;
 

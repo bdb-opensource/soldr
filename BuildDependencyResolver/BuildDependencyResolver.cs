@@ -40,7 +40,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     .ToAdjacencyGraph<Project, SEdge<Project>>(false);
         }
 
-
+        /// <summary>
+        /// Builds a dependency graph between solutions. The vertices in the graph are the solution full file names.
+        /// </summary>
         public static AdjacencyGraph<String, SEdge<String>> SolutionDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse, int maxRecursionLevel)
         {
             return DeepDependencies(projectFinder, projects, true, maxRecursionLevel)
@@ -60,7 +62,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// Note that .sln files may appear in the final graph even if they are not given in the input files list, if something in the input depends on them.</param>
         /// <param name="basePath">Base path to start search for dependency .sln and .csproj files (used mainly for resolving assembly references)</param>
         /// <param name="maxRecursionLevel">How deep to resolve dependencies of the given inputs. 0 means no dependency resolution is performed. -1 means infinity.</param>
-        public static BuildDependencyInfo GetDependencyInfo(IProjectFinder projectFinder, IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs, int maxRecursionLevel)
+        public static BuildDependencyInfo GetDependencyInfo(IProjectFinder projectFinder, IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs, int maxRecursionLevel) //, bool findAllDependents)
         {
             string[] projectFiles;
             string[] slnFiles;
@@ -79,13 +81,17 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
             var csprojProjects = projectFiles.Select(Project.FromCSProj);
             var slnProjects = slnFiles.SelectMany(projectFinder.GetProjectsOfSLN);
-            var projects = csprojProjects.Union(slnProjects).ToArray();
+            var inputProjects = csprojProjects.Union(slnProjects).ToArray();
 
-            PrintInputInfo(excludedSLNs, projectFiles, slnFiles, projects);
+            PrintInputInfo(excludedSLNs, projectFiles, slnFiles, inputProjects);
 
-            return new BuildDependencyInfo(ProjectDependencyGraph(projectFinder, projects, false, maxRecursionLevel),
-                                           SolutionDependencyGraph(projectFinder, projects, false, maxRecursionLevel), 
-                                           excludedSLNs);
+            //Project[] projectsForDependencyGraph = findAllDependents 
+            //                                     ? projectFinder.AllProjectsInPath().ToArray() 
+            //                                     : inputProjects;
+
+            return new BuildDependencyInfo(ProjectDependencyGraph(projectFinder, inputProjects, false, maxRecursionLevel),
+                                                SolutionDependencyGraph(projectFinder, inputProjects, false, maxRecursionLevel), 
+                                                excludedSLNs);
         }
 
         protected static IEnumerable<Project> GetAllProjectsInSolutionsOfProject(IProjectFinder projectFinder, Project project)
@@ -223,3 +229,4 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
     }
 }
+

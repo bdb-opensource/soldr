@@ -56,6 +56,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         public Regex[] MatchingAssemblyRegexes;
         public bool FlipIgnore;
         public bool IgnoreMissingAssemblies;
+        //public bool Dependents;
     }
 
     class Program
@@ -101,7 +102,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 ValidateProject(project, optionValues);
             }
 
-            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver.GetDependencyInfo(projectFinder, inputFiles, exlcudedSlns, optionValues.RecursionLevel);
+            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver
+                                                        .GetDependencyInfo(projectFinder, inputFiles, exlcudedSlns, optionValues.RecursionLevel); //, optionValues.Dependents);
 
             if (optionValues.GenerateGraphviz)
             {
@@ -252,6 +254,9 @@ namespace BuildDependencyReader.PrintProjectDependencies
             options.Add("x|exclude=", 
                         "Exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
                         x => exlcudedSlns.Add(x));
+            //options.Add("dependents",
+            //            "Finds anything that depends on the projects/solutions and performs operations as if they were the inputs (builds, prints, updates components, etc. on the dependents)",
+            //            x => optionValues.Dependents = (null != x));
             options.Add("m=|match-assembly=",
                         "When finding dependencies and copying components, ignore ALL referenced assemblies EXCEPT those matching the given regex pattern (case insensitive). May be given multiple times to accumulate patterns. Useful for ignoring system and third-party assemblies.",
                         x => assemblyMatchPatterns.Add(new Regex(x, RegexOptions.IgnoreCase)));
