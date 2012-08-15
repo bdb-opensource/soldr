@@ -117,12 +117,16 @@ namespace BuildDependencyReader.BuildDependencyResolver
             var remainingReferences = new Queue<AssemblyReference>(assemblyReferences);
             var indirectReferencesOutsideSolution = new List<IndirectReferenceInfo>();
 
+            var ignoredAssemblies = new List<AssemblyReference>();
+            var missingProjects = new List<AssemblyReference>();
+            var unbuiltProjects = new List<Project>();
+
             while (remainingReferences.Any())
             {
                 var assemblyReference = remainingReferences.Dequeue();
                 if (false == IncludeAssemblyWhenCopyingDeps(assemblyReference, assemblyNamePatterns, ignoreOnlyMatching))
                 {
-                    _logger.InfoFormat("Not copying ignored assembly: '{0}'", assemblyReference.ToString());
+                    _logger.DebugFormat("Not copying ignored assembly: '{0}'", assemblyReference.ToString());
                     continue;
                 }
 
@@ -130,6 +134,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 {
                     _logger.WarnFormat("Can't copy dependency (no target path): Missing HintPath for assembly reference: '{0}', used by projects:\n{1}",
                         assemblyReference, ProjectsUsingAssemblyReference(projectFinder, assemblyReference));
+                    ignoredAssemblies.Add(assemblyReference);
                     continue;
                 }
                 var targetPath = System.IO.Path.GetDirectoryName(assemblyReference.HintPath);
@@ -137,15 +142,17 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 var buildingProject = projectFinder.FindProjectForAssemblyReference(assemblyReference).SingleOrDefault();
                 if (null == buildingProject)
                 {
-                    _logger.WarnFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}', used by projects:\n{1}",
+                    _logger.DebugFormat("Can't find dependency (no building project): No project builds assembly reference: '{0}', used by projects:\n{1}",
                         assemblyReference,
                         ProjectsUsingAssemblyReference(projectFinder, assemblyReference));
+                    missingProjects.Add(assemblyReference);
                     continue;
                 }
 
                 if (ignoreMissing && (false == System.IO.Directory.Exists(buildingProject.GetAbsoluteOutputPath())))
                 {
-                    _logger.InfoFormat("Ignoring (not copying) all components from not-built project: {0}", buildingProject.ToString());
+                    _logger.DebugFormat("Ignoring (not copying) all components from not-built project: {0}", buildingProject.ToString());
+                    unbuiltProjects.Add(buildingProject);
                     continue;
                 }
 
@@ -160,6 +167,26 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
 
             WarnAboutRemainingIndirectReferences(projectFinder, originalAssemblyReferenceNames, indirectReferencesOutsideSolution);
+            WarnAboutUncopiedAssemblies(ignoredAssemblies, missingProjects, unbuiltProjects);
+        }
+
+        private static void WarnAboutUncopiedAssemblies(List<AssemblyReference> ignoredAssemblies, List<AssemblyReference> missingProjects, List<Project> unbuiltProjects)
+        {
+            var messageBuilder = new StringBuilder();
+            messageBuilder.Append(MessageForNonZeroStat(ignoredAssemblies.Count, "ignored assemblies"));
+            messageBuilder.Append(MessageForNonZeroStat(missingProjects.Count, "assemblies from unknown projects"));
+            messageBuilder.Append(MessageForNonZeroStat(unbuiltProjects.Count, "assemblies from projects that are not built (could not find outputs)"));
+            if (0 < messageBuilder.Length)
+            {
+                _logger.Warn("Dependencies not copied:\n" + messageBuilder.ToString());
+            }
+        }
+
+        private static string MessageForNonZeroStat(int value, string msg)
+        {
+            return (0 == value )
+                 ? String.Empty 
+                 : String.Format("{0} {1}\n", value, msg);
         }
 
         protected static void WarnAboutRemainingIndirectReferences(IProjectFinder projectFinder, HashSet<string> originalAssemblyReferenceNames,
@@ -200,7 +227,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
             var buildingSolution = projectFinder.GetSLNFileForProject(buildingProject);
 
-            _logger.InfoFormat("Adding indirect references due to reference {0} built by project: '{1}'\n{2}",
+            _logger.DebugFormat("Adding indirect references due to reference {0} built by project: '{1}'\n{2}",
                 assemblyReference, buildingProject, StringExtensions.Tabify(indirectReferences.Select(x => x.ToString())));
             foreach (var indirectReference in indirectReferences)
             {

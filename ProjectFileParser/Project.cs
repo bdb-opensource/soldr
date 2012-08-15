@@ -198,7 +198,7 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the project has no matching default configuration (Project = {0})",
                                                   this);
-                _logger.Warn(errorMessage);
+                _logger.Debug(errorMessage);
                 throw new InvalidDefaultConfigurationException(errorMessage);
             }
             // TODO: If there IS a default config, this part of the validation should probably ALWAYS be done (in the constructor or something).
@@ -206,7 +206,7 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the default configuration '{1}' has no output path set (Project = {0})",
                                                   this, this.DefaultConfiguration.Value);
-                _logger.Warn(errorMessage);
+                _logger.Debug(errorMessage);
                 throw new InvalidDefaultConfigurationException(errorMessage);
             }
         }
@@ -256,7 +256,7 @@ namespace BuildDependencyReader.ProjectFileParser
             catch (Exception e)
             {
                 var errorMessage = "Error when trying to process project from path: " + fullPath;
-                _logger.Info(errorMessage, e);
+                _logger.Debug(errorMessage, e);
                 throw new Exception(errorMessage, e);
             }
         }
@@ -370,7 +370,7 @@ namespace BuildDependencyReader.ProjectFileParser
             catch (Exception e)
             {
                 var errorMessage = "Error when trying to resolve referenced project: " + absoluteFilePath;
-                _logger.Info(errorMessage, e);
+                _logger.Debug(errorMessage, e);
                 throw new ArgumentException("Error when trying to resolve referenced project: " + absoluteFilePath, e);
             }
             return project;

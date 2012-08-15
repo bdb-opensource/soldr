@@ -203,15 +203,15 @@ namespace BuildDependencyReader.BuildDependencyResolver
         {
             if (projectFiles.Any())
             {
-                _logger.InfoFormat("Input CSPROJ files:\n" + StringExtensions.Tabify(projectFiles));
+                _logger.DebugFormat("Input CSPROJ files:\n" + StringExtensions.Tabify(projectFiles));
             }
             if (slnFiles.Any())
             {
-                _logger.InfoFormat("Input SLN files:\n" + StringExtensions.Tabify(slnFiles));
+                _logger.DebugFormat("Input SLN files:\n" + StringExtensions.Tabify(slnFiles));
             }
             if (projects.Any())
             {
-                _logger.InfoFormat("Input projects:\n" + StringExtensions.Tabify(projects.Select(x => x.Path)));
+                _logger.DebugFormat("Input projects:\n" + StringExtensions.Tabify(projects.Select(x => x.Path)));
             }
 
             if (excludedSLNs.Any())

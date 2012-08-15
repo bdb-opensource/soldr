@@ -44,11 +44,12 @@ namespace BuildDependencyReader.PrintProjectDependencies
         }
     }
 
+
     class OptionValues
     {
         public string BasePath;
         public bool GenerateGraphviz;
-        public bool Verbose;
+        public log4net.Core.Level LogLevel = log4net.Core.Level.Warn;
         public bool PrintSolutionBuildOrder;
         public bool Build;
         public bool UpdateComponents;
@@ -63,6 +64,12 @@ namespace BuildDependencyReader.PrintProjectDependencies
     {
         protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        protected static readonly Level[] _levels = { Level.Error, Level.Warn, Level.Info, Level.Debug };
+        private static Level IncreaseLogLevel(Level level)
+        {
+            return _levels.FirstOrDefault(x => x.Value < level.Value) ?? Level.All;
+        }
+
 
         static int Main(string[] args)
         {
@@ -77,7 +84,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 return 1;
             }
 
-            UpdateLog4NetLevel(optionValues.Verbose);
+            UpdateLog4NetLevel(optionValues.LogLevel);
 
             try
             {
@@ -150,10 +157,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
             }
         }
 
-        protected static void UpdateLog4NetLevel(bool verbose)
+        protected static void UpdateLog4NetLevel(log4net.Core.Level level)
         {
-            Level level = verbose ? log4net.Core.Level.Trace
-                                  : log4net.Core.Level.Warn;
             log4net.LogManager.GetRepository().Threshold = level;
         }
 
@@ -228,7 +233,6 @@ namespace BuildDependencyReader.PrintProjectDependencies
             bool userRequestsHelp = false;
 
             optionValues.BasePath = null;
-            optionValues.Verbose = false;
             optionValues.GenerateGraphviz = false;
             optionValues.Build = false;
             optionValues.PrintSolutionBuildOrder = false;
@@ -267,8 +271,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
                         "When copying dependency assemblies (components), ignore those that are missing - meaning, the ones that can't be copied because the compiled assembly file to be copied is not found.",
                         x => optionValues.IgnoreMissingAssemblies = (null != x));
             options.Add("v|verbose",
-                        "Print verbose output (will go to stderr)",
-                        x => optionValues.Verbose = (null != x));
+                        "Verbose output. Repeat this flag (e.g. -vvv) for more verbose output (will go to stderr)",
+                        x => optionValues.LogLevel = IncreaseLogLevel(optionValues.LogLevel));
             options.Add("g|graph",
                         "Generate dependency graph output (requires GraphViz)",
                         x => optionValues.GenerateGraphviz = (null != x));

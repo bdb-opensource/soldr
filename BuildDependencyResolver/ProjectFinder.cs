@@ -50,7 +50,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 catch (Exception e)
                 {
                     _logger.WarnFormat("Skipping project because there was an error while trying to process the .csproj file ({0})", csProjFileInfo.FullName);
-                    _logger.Info("Skipping project due to exception:", e);
+                    _logger.Debug("Skipping project due to exception:", e);
                     continue;
                 }
                 this._projects.Add(project);
