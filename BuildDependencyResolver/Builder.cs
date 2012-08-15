@@ -33,11 +33,11 @@ namespace BuildDependencyReader.BuildDependencyResolver
             _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
             UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching, ignoreMissing);
             ValidateSolutionReadyForBuild(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching);
-            _logger.InfoFormat("\tCleaning...");
+            _logger.DebugFormat("\tCleaning...");
             MSBuild(solutionFileName, "/t:clean");
-            _logger.InfoFormat("\tBuilding...");
+            _logger.DebugFormat("\tBuilding...");
             MSBuild(solutionFileName);
-            _logger.InfoFormat("\tDone: '{0}'", solutionFileName);
+            _logger.InfoFormat("Done: {0} ('{1}')\n", Path.GetFileName(solutionFileName), solutionFileName);
         }
 
         protected static void ValidateSolutionReadyForBuild(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching)
@@ -51,11 +51,12 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, bool ignoreMissing)
         {
-            _logger.InfoFormat("\tCopying dependencies...");
+            _logger.DebugFormat("Updating components: {0} (copying dependencies required for '{1}')...", Path.GetFileName(solutionFileName), solutionFileName);
             var assemblyReferences = projectFinder.GetProjectsOfSLN(solutionFileName)
                                                   .SelectMany(x => x.AssemblyReferences)
                                                   .Distinct();
             Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, assemblyNamePatterns, ignoreOnlyMatching, assemblyReferences, ignoreMissing);
+            _logger.InfoFormat("Updated components required by: {0} ('{1}')", Path.GetFileName(solutionFileName), solutionFileName);
         }
 
         protected static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
@@ -175,16 +176,18 @@ namespace BuildDependencyReader.BuildDependencyResolver
         private static void WarnAboutUncopiedAssemblies(Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, List<AssemblyReference> ignoredAssemblies, List<AssemblyReference> badHintPathAssemblies, List<AssemblyReference> missingProjects, List<Project> unbuiltProjects)
         {
             var messageBuilder = new StringBuilder();
-            messageBuilder.Append(MessageForNonZeroStat(ignoredAssemblies.Count, 
-                String.Format("ignored assemblies ({0} patterns: {1})", 
-                    ignoreOnlyMatching ? "matched one or more of the" : "did not match any of the",
-                    String.Join(", ", assemblyNamePatterns.Select(x => "'" + x.ToString() + "'")))));
+            _logger.DebugFormat("Ignored dependencies: {0}", 
+                MessageForNonZeroStat(ignoredAssemblies.Count,
+                    String.Format("ignored assemblies ({0} patterns: {1})",
+                        ignoreOnlyMatching ? "matched one or more of the" : "did not match any of the",
+                        String.Join(", ", assemblyNamePatterns.Select(x => "'" + x.ToString() + "'")))));
             messageBuilder.Append(MessageForNonZeroStat(badHintPathAssemblies.Count, "assemblies with missing or wrong HintPath"));
             messageBuilder.Append(MessageForNonZeroStat(missingProjects.Count, "assemblies from unknown projects"));
             messageBuilder.Append(MessageForNonZeroStat(unbuiltProjects.Count, "assemblies from projects that are not built (could not find outputs)"));
             if (0 < messageBuilder.Length)
             {
-                _logger.Warn("Dependencies not copied: (see verbose output for more details)\n" + messageBuilder.ToString());
+                var message = "Dependencies not copied: (see verbose output for more details)\n" + messageBuilder.ToString();
+                _logger.Warn(message);
             }
         }
 
@@ -296,9 +299,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
                 if (ignoreMissing && (false == System.IO.File.Exists(source)))
                 {
-                    _logger.InfoFormat("copy: ignoring missing file, not copying: {0} -> {1}...", source, target);
+                    _logger.DebugFormat("copy: ignoring missing file {2}, not copying: {0} -> {1}...", source, target, Path.GetFileName(target));
                 }
-                _logger.InfoFormat("copy: {0} -> {1}...", source, target);
+                _logger.DebugFormat("copy: {2} ({0} -> {1})...", source, target, Path.GetFileName(target));
                 System.IO.Directory.CreateDirectory(targetPath);
                 System.IO.File.Copy(source, target, true);
             }

@@ -245,10 +245,16 @@ namespace BuildDependencyReader.PrintProjectDependencies
                         "(required) Base path for searching for sln / csproj files.",
                         x => optionValues.BasePath = x);
             options.Add("c|compile",
-                        "Compile (using msbuild) the inputs using the calculated dependency order.",
+                        @"Full compile of the given inputs. Combine with -u to only build the dependencies (but not the direct input solutions).
+Includes (recursively on all dependencies, using the calculated dependency order):
+1. Find the full dependency graph (can be limited by -r)
+2. Update the dependency assemblies
+3. Run msbuild",
                         x => optionValues.Build = (null != x));
             options.Add("u|update-dependencies",
-                        "Update dependencies (components) of the input solutions. Finds the project that builds each dependent assembly and copies the project's outputs to the HintPath given in the input project's definition (.csproj).\nCombine this with -c (--compile) to also compile whatever is neccesary for building the dependency assemblies and then copy them.",
+                        @"Update dependencies (components) of the input solutions.
+Finds the project that builds each dependent assembly and copies the project's outputs to the HintPath given in the input project's definition (.csproj).
+Combine this with -c (--compile) to also compile whatever is neccesary for building the dependency assemblies and then copy them.",
                         x => optionValues.UpdateComponents = (null != x));
             options.Add("r=|recursion-level=",
                           "How many levels should the builder recurse when building a project's dependencies. Default is infinity (you can specify it by passing -1)." + Environment.NewLine
