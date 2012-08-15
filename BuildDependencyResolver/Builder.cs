@@ -82,7 +82,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             process.Start();
 
             // Must read process outputs before calling WaitForExit to prevent deadlocks
-            LogWarnProcessOutputs(process);
+            LogWarnProcessOutputs(process, Path.GetFileName(solutionFileName));
 
             process.WaitForExit();
             if (0 != process.ExitCode)
@@ -93,17 +93,17 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
         }
 
-        protected static void LogWarnProcessOutputs(Process process)
+        protected static void LogWarnProcessOutputs(Process process, string messagePrefix)
         {
             var processStdOut = process.StandardOutput.ReadToEnd().Trim();
             if (processStdOut.Any())
             {
-                _logger.WarnFormat("'{0} {1}': stdout:\n{2}", process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdOut));
+                _logger.WarnFormat("{0}: stdout of '{1} {2}':\n\n{3}\n", messagePrefix, process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdOut));
             }
             var processStdErr = process.StandardError.ReadToEnd().Trim();
             if (processStdErr.Any())
             {
-                _logger.WarnFormat("'{0} {1}': stderr:\n{2}", process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdErr));
+                _logger.WarnFormat("{0}: stderr of '{1} {2}':\n\n{3}\n", messagePrefix, process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdErr));
             }
         }
 
