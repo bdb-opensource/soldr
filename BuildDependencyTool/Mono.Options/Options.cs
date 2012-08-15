@@ -680,6 +680,8 @@ namespace Mono.Options
 
 	public class OptionSet : KeyedCollection<string, Option>
 	{
+        public int LineWidth = 80;
+
 		public OptionSet ()
 			: this (delegate (string f) {return f;})
 		{
@@ -1141,9 +1143,18 @@ namespace Mono.Options
 			option.Invoke (c);
 		}
 
-		private const int OptionWidth = 29;
-		private const int Description_FirstWidth  = 80 - OptionWidth;
-		private const int Description_RemWidth    = 80 - OptionWidth - 2;
+		public int OptionWidth = 29;
+        private int Description_FirstWidth
+        {
+            get { return LineWidth - OptionWidth; }
+        }
+        private int Description_RemWidth
+        {
+            get
+            {
+                return LineWidth - OptionWidth - 2;
+            }
+        }
 
 		public void WriteOptionDescriptions (TextWriter o)
 		{
@@ -1152,7 +1163,7 @@ namespace Mono.Options
 
 				Category c = p as Category;
 				if (c != null) {
-					WriteDescription (o, p.Description, "", 80, 80);
+					WriteDescription (o, p.Description, "", LineWidth, LineWidth);
 					continue;
 				}
 

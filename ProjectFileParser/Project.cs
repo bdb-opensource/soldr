@@ -165,7 +165,7 @@ namespace BuildDependencyReader.ProjectFileParser
                 var errorMessage = String.Format("Found assembly references with empty HintPaths in project '{0}'. Assembly references:\n{1}",
                                                  this.ToString(),
                                                  StringExtensions.Tabify(invalidHintPathAssemblies.Select(x => x.ToString())));
-                _logger.Warn(errorMessage);
+                _logger.Info(errorMessage);
             }
         }
 

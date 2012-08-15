@@ -239,6 +239,8 @@ namespace BuildDependencyReader.PrintProjectDependencies
             var assemblyMatchPatterns = new List<Regex>();
 
             var options = new OptionSet();
+            options.LineWidth = 150;
+            options.OptionWidth = 30;
             options.Add("b|base-path=",
                         "(required) Base path for searching for sln / csproj files.",
                         x => optionValues.BasePath = x);
@@ -265,7 +267,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
                         "When finding dependencies and copying components, ignore ALL referenced assemblies EXCEPT those matching the given regex pattern (case insensitive). May be given multiple times to accumulate patterns. Useful for ignoring system and third-party assemblies.",
                         x => assemblyMatchPatterns.Add(new Regex(x, RegexOptions.IgnoreCase)));
             options.Add("flip-ignore",
-                        "Flips the meaning of match-assembly (-m) to ignore ONLY the matched patterns, and not ignore anything that doesn't match.",
+                        "Flips the meaning of match-assembly (-m) to ignore ONLY the matched patterns, and not ignore anything that doesn't match. If no -m is given, this option is ignored and all assemblies are included in the build.",
                         x => optionValues.FlipIgnore = (null != x));
             options.Add("ignore-missing",
                         "When copying dependency assemblies (components), ignore those that are missing - meaning, the ones that can't be copied because the compiled assembly file to be copied is not found.",

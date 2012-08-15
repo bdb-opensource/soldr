@@ -118,6 +118,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             var indirectReferencesOutsideSolution = new List<IndirectReferenceInfo>();
 
             var ignoredAssemblies = new List<AssemblyReference>();
+            var badHintPathAssemblies = new List<AssemblyReference>();
             var missingProjects = new List<AssemblyReference>();
             var unbuiltProjects = new List<Project>();
 
@@ -127,14 +128,15 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 if (false == IncludeAssemblyWhenCopyingDeps(assemblyReference, assemblyNamePatterns, ignoreOnlyMatching))
                 {
                     _logger.DebugFormat("Not copying ignored assembly: '{0}'", assemblyReference.ToString());
+                    ignoredAssemblies.Add(assemblyReference);
                     continue;
                 }
 
                 if (String.IsNullOrWhiteSpace(assemblyReference.HintPath))
                 {
-                    _logger.WarnFormat("Can't copy dependency (no target path): Missing HintPath for assembly reference: '{0}', used by projects:\n{1}",
+                    _logger.DebugFormat("Can't copy dependency (no target path): Missing HintPath for assembly reference: '{0}', used by projects:\n{1}",
                         assemblyReference, ProjectsUsingAssemblyReference(projectFinder, assemblyReference));
-                    ignoredAssemblies.Add(assemblyReference);
+                    badHintPathAssemblies.Add(assemblyReference);
                     continue;
                 }
                 var targetPath = System.IO.Path.GetDirectoryName(assemblyReference.HintPath);
@@ -167,18 +169,22 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
 
             WarnAboutRemainingIndirectReferences(projectFinder, originalAssemblyReferenceNames, indirectReferencesOutsideSolution);
-            WarnAboutUncopiedAssemblies(ignoredAssemblies, missingProjects, unbuiltProjects);
+            WarnAboutUncopiedAssemblies(assemblyNamePatterns, ignoreOnlyMatching, ignoredAssemblies, badHintPathAssemblies, missingProjects, unbuiltProjects);
         }
 
-        private static void WarnAboutUncopiedAssemblies(List<AssemblyReference> ignoredAssemblies, List<AssemblyReference> missingProjects, List<Project> unbuiltProjects)
+        private static void WarnAboutUncopiedAssemblies(Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, List<AssemblyReference> ignoredAssemblies, List<AssemblyReference> badHintPathAssemblies, List<AssemblyReference> missingProjects, List<Project> unbuiltProjects)
         {
             var messageBuilder = new StringBuilder();
-            messageBuilder.Append(MessageForNonZeroStat(ignoredAssemblies.Count, "ignored assemblies"));
+            messageBuilder.Append(MessageForNonZeroStat(ignoredAssemblies.Count, 
+                String.Format("ignored assemblies ({0} patterns: {1})", 
+                    ignoreOnlyMatching ? "matched one or more of the" : "did not match any of the",
+                    String.Join(", ", assemblyNamePatterns.Select(x => "'" + x.ToString() + "'")))));
+            messageBuilder.Append(MessageForNonZeroStat(badHintPathAssemblies.Count, "assemblies with missing or wrong HintPath"));
             messageBuilder.Append(MessageForNonZeroStat(missingProjects.Count, "assemblies from unknown projects"));
             messageBuilder.Append(MessageForNonZeroStat(unbuiltProjects.Count, "assemblies from projects that are not built (could not find outputs)"));
             if (0 < messageBuilder.Length)
             {
-                _logger.Warn("Dependencies not copied:\n" + messageBuilder.ToString());
+                _logger.Warn("Dependencies not copied: (see verbose output for more details)\n" + messageBuilder.ToString());
             }
         }
 
@@ -186,7 +192,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         {
             return (0 == value )
                  ? String.Empty 
-                 : String.Format("{0} {1}\n", value, msg);
+                 : String.Format("\t{0} {1}\n", value, msg);
         }
 
         protected static void WarnAboutRemainingIndirectReferences(IProjectFinder projectFinder, HashSet<string> originalAssemblyReferenceNames,
