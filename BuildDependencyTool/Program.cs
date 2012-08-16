@@ -125,10 +125,12 @@ namespace BuildDependencyReader.PrintProjectDependencies
             if (optionValues.UpdateComponents)
             {
                 PerformUpdateComponents(projectFinder, dependencyInfo, optionValues);
+                Console.Error.WriteLine("Dependencies updated.");
             }
             else if (optionValues.Build)
             {
                 PerformBuild(projectFinder, dependencyInfo, optionValues);
+                Console.Error.WriteLine("Build complete.");
             }
         }
 
