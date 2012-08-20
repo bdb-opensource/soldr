@@ -160,6 +160,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 }
 
                 var projectOutputs = buildingProject.GetBuiltProjectOutputs().ToArray();
+                _logger.InfoFormat("Copy: {0,-40} -> {1}", buildingProject.Name, targetPath);
                 CopyFilesToDirectory(projectOutputs, targetPath, ignoreMissing);
 
                 // Add sub-references - the indirectly referenced assemblies, the ones used by the current assemblyReference
