@@ -130,7 +130,16 @@ namespace BuildDependencyReader.ProjectFileParser
         {
             this.ValidateDefaultConfiguration();
             var directoryInfo = new DirectoryInfo(GetAbsoluteOutputPath());
-            var outputs = directoryInfo.EnumerateFiles();
+            IEnumerable<FileInfo> outputs;
+            try
+            {
+                outputs = directoryInfo.EnumerateFiles();
+            }
+            catch (Exception e)
+            {
+                _logger.ErrorFormat("Error while trying to read directory '{0}': {1}", directoryInfo.FullName, e.Message);
+                throw;
+            }
             if (includeDependencies) {
                 return outputs;
             }

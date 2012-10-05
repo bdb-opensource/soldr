@@ -180,7 +180,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             }
             catch (NonAcyclicGraphException)
             {
-                _logger.Error("Can't resolve solution dependencies because there is a cyclic dependency somewhere in the graph. Use the graph output option for more information on the dependecy graph.");
+                _logger.Error("Cyclic dependency found - can't resolve solution dependencies because there is a cyclic dependency somewhere in the graph. Use the graph output option for more information on the dependecy graph.");
                 throw;
             }
         }
@@ -188,7 +188,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         protected static void PerformUpdateComponents(ProjectFinder projectFinder, BuildDependencyInfo dependencyInfo, OptionValues optionValues)
         {
             var graph = dependencyInfo.TrimmedSolutionDependencyGraph;
-            var sortedSolutions = graph.TopologicalSort();
+            var sortedSolutions = GetDependencySortedSolutionNames(dependencyInfo);
             if (optionValues.Build)
             {
                 foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))

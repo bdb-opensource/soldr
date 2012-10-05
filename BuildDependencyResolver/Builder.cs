@@ -214,10 +214,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
     Which is used directly by projects:
     {4}
 ",
-                    indirectReferenceInfo.IndirectReference.ToString(),
-                    indirectReferenceInfo.IndirectReferenceProject.ToString(),
-                    indirectReferenceInfo.DirectReferenceProject.ToString(),
-                    indirectReferenceInfo.DirectReference.ToString(),
+                    indirectReferenceInfo.IndirectReference,
+                    indirectReferenceInfo.IndirectReferenceProject,
+                    indirectReferenceInfo.DirectReferenceProject,
+                    indirectReferenceInfo.DirectReference,
                     StringExtensions.Tabify(ProjectsUsingAssemblyReference(projectFinder, indirectReferenceInfo.DirectReference)));
             }
         }
