@@ -213,7 +213,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
     Which builds reference:         {3}
     Which is used directly by projects:
     {4}
-",
+", // TODO: Add description of motivation for this: If the project directly requires an assembly from solution A, which happens to required something from solution B, the builder will not copy assemblies from B and mix them in the same "Components" directory of assemblies from A
                     indirectReferenceInfo.IndirectReference,
                     indirectReferenceInfo.IndirectReferenceProject,
                     indirectReferenceInfo.DirectReferenceProject,

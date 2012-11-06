@@ -174,7 +174,7 @@ namespace BuildDependencyReader.ProjectFileParser
                 var errorMessage = String.Format("Found assembly references with empty HintPaths in project '{0}'. Assembly references:\n{1}",
                                                  this.ToString(),
                                                  StringExtensions.Tabify(invalidHintPathAssemblies.Select(x => x.ToString())));
-                _logger.Info(errorMessage);
+                _logger.Warn(errorMessage);
             }
         }
 
@@ -207,7 +207,7 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the project has no matching default configuration (Project = {0})",
                                                   this);
-                _logger.Debug(errorMessage);
+                _logger.Info(errorMessage);
                 throw new InvalidDefaultConfigurationException(errorMessage);
             }
             // TODO: If there IS a default config, this part of the validation should probably ALWAYS be done (in the constructor or something).
@@ -215,7 +215,7 @@ namespace BuildDependencyReader.ProjectFileParser
             {
                 var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the default configuration '{1}' has no output path set (Project = {0})",
                                                   this, this.DefaultConfiguration.Value);
-                _logger.Debug(errorMessage);
+                _logger.Info(errorMessage);
                 throw new InvalidDefaultConfigurationException(errorMessage);
             }
         }
