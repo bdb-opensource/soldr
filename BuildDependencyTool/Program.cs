@@ -57,6 +57,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         public Regex[] MatchingAssemblyRegexes;
         public bool FlipIgnore;
         public bool IgnoreMissingAssemblies;
+        public bool CleanBeforeBuild = true;
         //public bool Dependents;
     }
 
@@ -193,7 +194,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))
                 {
-                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies);
+                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies, optionValues.CleanBeforeBuild);
                 }
             }
             foreach (var solutionFileName in sortedSolutions.Where(x => false == graph.OutEdges(x).Any()))
@@ -206,7 +207,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies);
+                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies, optionValues.CleanBeforeBuild);
             }
         }
 
@@ -253,6 +254,7 @@ Includes (recursively on all dependencies, using the calculated dependency order
 2. Update the dependency assemblies
 3. Run msbuild",
                         x => optionValues.Build = (null != x));
+            options.Add("no-clean", @"Don't clean (don't run msbuild /t:clean) before building. Default is to clean.", x => optionValues.CleanBeforeBuild = false == (null != x));
             options.Add("u|update-dependencies",
                         @"Update dependencies (components) of the input solutions.
 Finds the project that builds each dependent assembly and copies the project's outputs to the HintPath given in the input project's definition (.csproj).

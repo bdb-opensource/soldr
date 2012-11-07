@@ -86,7 +86,7 @@ namespace BuildDependencyReader.ProjectFileParser
         {
             var outputs = this.GetBuiltProjectOutputs(false);
             this.LogUnexpectedOutputs(outputs);
-            return outputs;
+            return outputs.Where(HasCurrentProjectPrefixName).ToArray();
         }
 
         #endregion
@@ -119,11 +119,16 @@ namespace BuildDependencyReader.ProjectFileParser
 
         private void LogUnexpectedOutputs(IEnumerable<FileInfo> outputs)
         {
-            var outputsWithUnexpectedNames = outputs.Select(x => x.Name).Where(x => false == x.StartsWith(this.Name)).ToArray();
+            var outputsWithUnexpectedNames = outputs.Where(x => false == HasCurrentProjectPrefixName(x)).Select(x => x.Name).ToArray();
             if (outputsWithUnexpectedNames.Any())
             {
-                _logger.WarnFormat("Project has unexpected outputs {0}:\n{1}", this.ToString(), StringExtensions.Tabify(outputsWithUnexpectedNames));
+                _logger.WarnFormat("Project has unexpected outputs (don't have a prefix matching the project name) {0}:\n{1}\nThey will be ignored.", this.ToString(), StringExtensions.Tabify(outputsWithUnexpectedNames));
             }
+        }
+
+        private bool HasCurrentProjectPrefixName(FileInfo x)
+        {
+            return x.Name.StartsWith(this.Name);
         }
 
         protected IEnumerable<FileInfo> GetBuiltProjectOutputsWithoutCyclicProtection(bool includeDependencies)

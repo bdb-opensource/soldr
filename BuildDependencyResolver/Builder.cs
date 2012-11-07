@@ -28,13 +28,16 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="solutionFileName"></param>
         /// <param name="ignoredDependencyAssemblies">Patterns for dependent assemblies to ignore when trying to find a building project to copy from.</param>
         /// <param name="ignoreOnlyMatching">Flips the meaning of the ignored assemblies so that ALL assemblies will be ignored, EXCEPT the ones matching the given patterns</param>
-        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching, bool ignoreMissing)
+        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching, bool ignoreMissing, bool cleanBeforeBuild)
         {
             _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
             UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching, ignoreMissing);
             ValidateSolutionReadyForBuild(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching);
-            _logger.DebugFormat("\tCleaning...");
-            MSBuild(solutionFileName, "/t:clean");
+            if (cleanBeforeBuild)
+            {
+                _logger.DebugFormat("\tCleaning...");
+                MSBuild(solutionFileName, "/t:clean");
+            }
             _logger.DebugFormat("\tBuilding...");
             MSBuild(solutionFileName);
             _logger.InfoFormat("Done: {0} ('{1}')\n", Path.GetFileName(solutionFileName), solutionFileName);
