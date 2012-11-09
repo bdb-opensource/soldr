@@ -34,10 +34,14 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <returns></returns>
         public static AdjacencyGraph<Project, SEdge<Project>> ProjectDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse, int maxRecursionLevel)
         {
-            return DeepDependencies(projectFinder, projects, false, maxRecursionLevel)
+            // First add all the dependencies (edges)
+            var graph = DeepDependencies(projectFinder, projects, false, maxRecursionLevel)
                     .Distinct()
                     .Select(x => new SEdge<Project>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
                     .ToAdjacencyGraph<Project, SEdge<Project>>(false);
+            // Then make sure we have vertices for each input "root" project, regardless of if it has dependencies or not
+            graph.AddVertexRange(projects);
+            return graph;
         }
 
         /// <summary>
@@ -45,13 +49,20 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// </summary>
         public static AdjacencyGraph<String, SEdge<String>> SolutionDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse, int maxRecursionLevel)
         {
-            return DeepDependencies(projectFinder, projects, true, maxRecursionLevel)
-                    .Where(x => x.Key != x.Value)
-                    .Select(x => ProjectEdgeToSLNEdge(projectFinder, x))
-                    .Where(x => false == x.Key.ToLowerInvariant().Equals(x.Value.ToLowerInvariant()))
-                    .Distinct()
-                    .Select(x => new SEdge<String>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
-                    .ToAdjacencyGraph<String, SEdge<String>>(false);
+            var graph = DeepDependencies(projectFinder, projects, true, maxRecursionLevel)
+                        .Where(x => x.Key != x.Value)
+                        .Select(x => ProjectEdgeToSLNEdge(projectFinder, x))
+                        .Where(x => false == SolutionNamesEqual(x))
+                        .Distinct()
+                        .Select(x => new SEdge<String>(reverse ? x.Key : x.Value, reverse ? x.Value : x.Key))
+                        .ToAdjacencyGraph<String, SEdge<String>>(false);
+            graph.AddVertexRange(projects.Select(x => SLNVertexName(projectFinder, x)));
+            return graph;
+        }
+
+        private static bool SolutionNamesEqual(KeyValuePair<string, string> x)
+        {
+            return x.Key.ToLowerInvariant().Equals(x.Value.ToLowerInvariant());
         }
 
         /// <summary>
@@ -101,8 +112,13 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
         protected static KeyValuePair<string, string> ProjectEdgeToSLNEdge(IProjectFinder projectFinder, KeyValuePair<Project, Project> x)
         {
-            return new KeyValuePair<String, String>(projectFinder.GetSLNFileForProject(x.Key).FullName,
-                                                    projectFinder.GetSLNFileForProject(x.Value).FullName);
+            return new KeyValuePair<String, String>(SLNVertexName(projectFinder, x.Key),
+                                                    SLNVertexName(projectFinder, x.Value));
+        }
+
+        private static string SLNVertexName(IProjectFinder projectFinder, Project project)
+        {
+            return projectFinder.GetSLNFileForProject(project).FullName;
         }
 
         protected struct ResolvedProjectDependencyInfo
@@ -139,7 +155,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     yield return new KeyValuePair<Project, Project>(projectPair.Source, projectPair.Target);
                 }
 
-                if ((0 <= maxRecursionLevel) && (projectPair.RecursionLevel > maxRecursionLevel))
+                if ((0 <= maxRecursionLevel) && (projectPair.RecursionLevel >= maxRecursionLevel))
                 {
                     continue;
                 }

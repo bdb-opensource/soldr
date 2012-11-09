@@ -29,7 +29,8 @@ namespace BuildDependencyReader.BuildDependencyResolver
 
             this.TrimmedSolutionDependencyGraph = new AdjacencyGraph<string,SEdge<string>>();
             // The following is only safe because our vertices are immutable values (strings):
-            this.TrimmedSolutionDependencyGraph.AddVerticesAndEdgeRange(_solutionDependencyGraph.Edges);
+            this.TrimmedSolutionDependencyGraph.AddVertexRange(_solutionDependencyGraph.Vertices);
+            this.TrimmedSolutionDependencyGraph.AddEdgeRange(_solutionDependencyGraph.Edges);
             this.TrimmedSolutionDependencyGraph.RemoveVertexIf(x => excludedSLNs.Contains(x.ToLowerInvariant()));
         }
 
