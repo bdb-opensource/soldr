@@ -27,6 +27,7 @@ namespace BuildDependencyReader.ProjectFileParser
 
         public string Name { get; protected set; }
         public string Path { get; protected set; }
+        public OutputType OutputType { get; protected set; }
         public IEnumerable<Project> ProjectReferences { get; protected set; }
         public IEnumerable<AssemblyReference> AssemblyReferences { get; protected set; }
         public IEnumerable<ProjectConfiguration> Configurations { get; protected set; }
@@ -51,8 +52,11 @@ namespace BuildDependencyReader.ProjectFileParser
 
             this.Path = fullPath;
             var document = XDocument.Load(fullPath);
+
             this.Name = document.Descendants(CSProjNamespace + "AssemblyName").Single().Value;
+            this.OutputType = GetOutputType(document);
             this.Configurations = GetProjectConfigurations(document).ToArray();
+
             this.DefaultConfiguration = this.FindDefaultConfiguration(document);
             this.AssemblyReferences = GetAssemblyReferences(this.Path, projectDirectory, document).ToArray();
             this.ProjectReferences = GetProjectReferences(projectDirectory, document).ToArray();
@@ -388,6 +392,17 @@ namespace BuildDependencyReader.ProjectFileParser
                 throw new ArgumentException("Error when trying to resolve referenced project: " + absoluteFilePath, e);
             }
             return project;
+        }
+
+        private OutputType GetOutputType(XDocument document)
+        {
+            var outputTypeStr = document.Descendants(CSProjNamespace + "OutputType").Single().Value;
+            OutputType outputType;
+            if (Enum.TryParse(outputTypeStr, out outputType))
+            {
+                return outputType;
+            }
+            return OutputType.Unknown;
         }
 
         #endregion

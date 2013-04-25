@@ -16,6 +16,9 @@ namespace BuildDependencyReader.BuildDependencyResolver
         protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
+        // Project output types that are known to be executable (OutputType.Library may or may not be, e.g. if it is actually a web application)
+        protected static OutputType[] KnownExecutableOutputTypes = { OutputType.Exe, OutputType.WinExe, };
+
         #region Public Methods
 
         /// <summary>
@@ -271,10 +274,20 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 indirectReferencesOutsideSolution
                     .Where(x => false == originalAssemblyReferenceNames.Contains(ComparableAssemblyName(x.IndirectReference))))
             {
-                _logger.WarnFormat(@"Skipped indirect reference from solution other than the direct reference that caused it:
+                Action<string> logAction = _logger.Warn;
+
+                // Some projects are KNOWN to be executable, which means they will absolutely fail when we try to run them because if this indirect reference that is missing.
+                // Other projects may also be "executable", such as Web Applications, so we still emit a warning.
+                if (KnownExecutableOutputTypes.Contains(indirectReferenceInfo.DirectReferenceProject.OutputType))
+                {
+                    logAction = _logger.Error;
+                }
+
+
+                logAction(String.Format(@"Skipped indirect reference from solution other than the direct reference that caused it:
     Indirect reference:             {0}
     Indirect reference built by:    {1}
-    Required by project:            {2}
+    Required by project:            {5} - {2}
     Which builds reference:         {3}
     Which is used directly by projects:
     {4}
@@ -283,7 +296,8 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     indirectReferenceInfo.IndirectReferenceProject,
                     indirectReferenceInfo.DirectReferenceProject,
                     indirectReferenceInfo.DirectReference,
-                    StringExtensions.Tabify(ProjectsUsingAssemblyReference(projectFinder, indirectReferenceInfo.DirectReference)));
+                    StringExtensions.Tabify(ProjectsUsingAssemblyReference(projectFinder, indirectReferenceInfo.DirectReference)),
+                    indirectReferenceInfo.DirectReferenceProject.OutputType));
             }
         }
 

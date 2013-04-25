@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="AssemblyReference.cs" />
     <Compile Include="Exceptions.cs" />
+    <Compile Include="OutputType.cs" />
     <Compile Include="Project.cs" />
     <Compile Include="ProjectConfiguration.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
