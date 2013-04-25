@@ -58,7 +58,9 @@ namespace BuildDependencyReader.PrintProjectDependencies
         public bool FlipIgnore;
         public bool IgnoreMissingAssemblies;
         public bool CleanBeforeBuild = true;
-        //public bool Dependents;
+        public bool RunTests;
+        public bool IgnoreFailedTests;
+        public bool IncludeAllSLNsAsInputs;
     }
 
     class Program
@@ -89,7 +91,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
             try
             {
-                PerformCommands(exlcudedSlns, inputFiles, optionValues);
+                PerformCommands(new HashSet<string>(exlcudedSlns), new HashSet<string>(inputFiles), optionValues);
             }
             catch (Exception e)
             {
@@ -101,13 +103,28 @@ namespace BuildDependencyReader.PrintProjectDependencies
             return 0;
         }
 
-        private static void PerformCommands(List<string> exlcudedSlns, List<string> inputFiles, OptionValues optionValues)
+        private static void PerformCommands(ISet<string> exlcudedSlns, ISet<string> inputFiles, OptionValues optionValues)
         {
             var projectFinder = new ProjectFinder(optionValues.BasePath, true);
 
             foreach (var project in projectFinder.AllProjectsInPath())
             {
                 ValidateProject(project, optionValues);
+            }
+
+            if (optionValues.IncludeAllSLNsAsInputs)
+            {
+                var slnFiles = projectFinder.AllProjectsInPath()
+                                            .Where(projectFinder.ProjectHasMatchingSLNFile)
+                                            .Select(projectFinder.GetSLNFileForProject)
+                                            .Select(x => x.FullName)
+                                            .Distinct();
+                _logger.Info("Adding SLN inputs:");
+                foreach (var slnFile in slnFiles.OrderBy(x => x))
+                {
+                    inputFiles.Add(slnFile);
+                    _logger.Info("\t" + slnFile);
+                }
             }
 
             var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver
@@ -194,7 +211,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
             {
                 foreach (var solutionFileName in sortedSolutions.Where(x => graph.OutEdges(x).Any()))
                 {
-                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies, optionValues.CleanBeforeBuild);
+                    Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies, optionValues.CleanBeforeBuild, optionValues.RunTests, optionValues.IgnoreFailedTests);
                 }
             }
             foreach (var solutionFileName in sortedSolutions.Where(x => false == graph.OutEdges(x).Any()))
@@ -207,7 +224,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
         {
             foreach (var solutionFileName in dependencyInfo.TrimmedSolutionDependencyGraph.TopologicalSort())
             {
-                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies, optionValues.CleanBeforeBuild);
+                Builder.BuildSolution(projectFinder, solutionFileName, optionValues.MatchingAssemblyRegexes, optionValues.FlipIgnore, optionValues.IgnoreMissingAssemblies, optionValues.CleanBeforeBuild, optionValues.RunTests, optionValues.IgnoreFailedTests);
             }
         }
 
@@ -247,6 +264,9 @@ namespace BuildDependencyReader.PrintProjectDependencies
             options.Add("b|base-path=",
                         "(required) Base path for searching for sln / csproj files.",
                         x => optionValues.BasePath = x);
+            options.Add("all-slns",
+                        "Find all .sln files under base path and use them as inputs.",
+                        x => optionValues.IncludeAllSLNsAsInputs = (null != x));
             options.Add("c|compile",
                         @"Full compile of the given inputs. Combine with -u to only build the dependencies (but not the direct input solutions).
 Includes (recursively on all dependencies, using the calculated dependency order):
@@ -288,6 +308,12 @@ Combine this with -c (--compile) to also compile whatever is neccesary for build
             options.Add("g|graph",
                         "Generate dependency graph output (requires GraphViz)",
                         x => optionValues.GenerateGraphviz = (null != x));
+            options.Add("t|run-tests",
+                        "Run all unit tests (using MSTest)",
+                        x => optionValues.RunTests = (null != x));
+            options.Add("ignore-failed-tests",
+                        "When running tests, don't stop the build on failure of tests.",
+                        x => optionValues.IgnoreFailedTests = (null != x));
             options.Add("h|help", 
                         "Show help", 
                         x => userRequestsHelp = (null != x));

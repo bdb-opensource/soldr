@@ -16,6 +16,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
         protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
+        #region Public Methods
 
         /// <summary>
         /// <para>Builds the given solution. Steps:</para>
@@ -28,10 +29,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="solutionFileName"></param>
         /// <param name="ignoredDependencyAssemblies">Patterns for dependent assemblies to ignore when trying to find a building project to copy from.</param>
         /// <param name="ignoreOnlyMatching">Flips the meaning of the ignored assemblies so that ALL assemblies will be ignored, EXCEPT the ones matching the given patterns</param>
-        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching, bool ignoreMissing, bool cleanBeforeBuild)
+        public static void BuildSolution(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching, bool ignoreMissing, bool cleanBeforeBuild, bool runTests, bool ignoreFailedTests)
         {
             _logger.InfoFormat("Building Solution: '{0}'", solutionFileName);
-            UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching, ignoreMissing);
+            Builder.UpdateComponentsFromBuiltProjects(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching, ignoreMissing);
             ValidateSolutionReadyForBuild(projectFinder, solutionFileName, ignoredDependencyAssemblies, ignoreOnlyMatching);
             if (cleanBeforeBuild)
             {
@@ -40,16 +41,12 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
             _logger.DebugFormat("\tBuilding...");
             MSBuild(solutionFileName);
-            _logger.InfoFormat("Done: {0} ('{1}')\n", Path.GetFileName(solutionFileName), solutionFileName);
-        }
-
-        protected static void ValidateSolutionReadyForBuild(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching)
-        {
-            foreach (var project in projectFinder.GetProjectsOfSLN(solutionFileName))
+            if (runTests)
             {
-                project.ValidateHintPaths(ignoredDependencyAssemblies, ignoreOnlyMatching);
-                project.ValidateAssemblyReferencesAreAvailable();
+                _logger.InfoFormat("\tRunning tests is enabled - looking for tests to run...");
+                RunAllUnitTests(projectFinder, solutionFileName, ignoreFailedTests);
             }
+            _logger.InfoFormat("Done: {0} ('{1}')\n", Path.GetFileName(solutionFileName), solutionFileName);
         }
 
         public static void UpdateComponentsFromBuiltProjects(IProjectFinder projectFinder, string solutionFileName, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, bool ignoreMissing)
@@ -61,56 +58,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             Builder.CopyAssemblyReferencesFromBuiltProjects(projectFinder, assemblyNamePatterns, ignoreOnlyMatching, assemblyReferences, ignoreMissing);
             _logger.InfoFormat("Updated components required by: {0} ('{1}')", Path.GetFileName(solutionFileName), solutionFileName);
         }
-
-        protected static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
-        {
-            if (assemblyNamePatterns.Any())
-            {
-                return BoolExtensions.Flip(assemblyNamePatterns.Any(r => r.IsMatch(assemblyReference.Name)), ignoreOnlyMatching);
-            }
-            // when no patterns are given, include all assemblies (don't filter)
-            return true;
-        }
-
-
-        protected static void MSBuild(string solutionFileName, string args = "")
-        {
-            var process = new Process();
-            process.StartInfo.CreateNoWindow = true;
-            process.StartInfo.UseShellExecute = false;
-            // TODO: Remove hard-coded path to msbuild
-            process.StartInfo.FileName = @"C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe";
-            process.StartInfo.Arguments = String.Format("/nologo /v:quiet \"{0}\" {1}", solutionFileName, args);
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.Start();
-
-            // Must read process outputs before calling WaitForExit to prevent deadlocks
-            LogWarnProcessOutputs(process, Path.GetFileName(solutionFileName));
-
-            process.WaitForExit();
-            if (0 != process.ExitCode)
-            {
-                var errorMessage = "Build failed: " + solutionFileName;
-                _logger.Error(errorMessage);
-                throw new Exception(errorMessage);
-            }
-        }
-
-        protected static void LogWarnProcessOutputs(Process process, string messagePrefix)
-        {
-            var processStdOut = process.StandardOutput.ReadToEnd().Trim();
-            if (processStdOut.Any())
-            {
-                _logger.WarnFormat("{0}: stdout of '{1} {2}':\n\n{3}\n", messagePrefix, process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdOut));
-            }
-            var processStdErr = process.StandardError.ReadToEnd().Trim();
-            if (processStdErr.Any())
-            {
-                _logger.WarnFormat("{0}: stderr of '{1} {2}':\n\n{3}\n", messagePrefix, process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdErr));
-            }
-        }
-
+        
         public static void CopyAssemblyReferencesFromBuiltProjects(
             IProjectFinder projectFinder, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, IEnumerable<AssemblyReference> assemblyReferences, bool ignoreMissing)
         {
@@ -177,17 +125,129 @@ namespace BuildDependencyReader.BuildDependencyResolver
             WarnAboutUncopiedAssemblies(assemblyNamePatterns, ignoreOnlyMatching, ignoredAssemblies, badHintPathAssemblies, missingProjects, unbuiltProjects);
         }
 
-        private static void WarnAboutUncopiedAssemblies(Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, List<AssemblyReference> ignoredAssemblies, List<AssemblyReference> badHintPathAssemblies, List<AssemblyReference> missingProjects, List<Project> unbuiltProjects)
+        #endregion
+
+        #region Protected Methods
+
+        protected static void RunAllUnitTests(IProjectFinder projectFinder, string solutionFileName, bool ignoreFailedTests)
+        {
+            foreach (var project in projectFinder.GetProjectsOfSLN(solutionFileName))
+            {
+                if (project.AssemblyReferences.Any(x => x.AssemblyNameFromFullName().StartsWith("Microsoft.VisualStudio.QualityTools.UnitTestFramework")))
+                {
+                    _logger.DebugFormat("\tRunning Tests: {0}", project.Name);
+                    MSTest(project, ignoreFailedTests);
+                }
+            }
+        }
+
+        protected static void ValidateSolutionReadyForBuild(IProjectFinder projectFinder, string solutionFileName, Regex[] ignoredDependencyAssemblies, bool ignoreOnlyMatching)
+        {
+            foreach (var project in projectFinder.GetProjectsOfSLN(solutionFileName))
+            {
+                project.ValidateHintPaths(ignoredDependencyAssemblies, ignoreOnlyMatching);
+                project.ValidateAssemblyReferencesAreAvailable();
+            }
+        }
+
+        protected static bool IncludeAssemblyWhenCopyingDeps(AssemblyReference assemblyReference, Regex[] assemblyNamePatterns, bool ignoreOnlyMatching)
+        {
+            if (assemblyNamePatterns.Any())
+            {
+                return BoolExtensions.Flip(assemblyNamePatterns.Any(r => r.IsMatch(assemblyReference.Name)), ignoreOnlyMatching);
+            }
+            // when no patterns are given, include all assemblies (don't filter)
+            return true;
+        }
+
+        protected static void MSTest(Project project, bool ignoreFailure)
+        {
+            // TODO: Remove hard-coded path to MSTest
+            var fileName = @"C:\Program Files (x86)\Microsoft Visual Studio 10.0\Common7\IDE\MSTest.exe";
+            var outputs = project.GetBuiltProjectOutputs().ToArray();
+            if (false == outputs.Any())
+            {
+                _logger.InfoFormat("Project {0} has no outputs, nothing to run MSTest on.", project.Name);
+                return;
+            }
+            _logger.InfoFormat("Searching for unit test outputs in: [{0}]", String.Join(", ", outputs.Select(x => x.Name).ToArray()));
+            foreach (var outputFileInfo in project.GetBuiltProjectOutputs().Where(x => x.Extension.Equals(".dll", StringComparison.InvariantCultureIgnoreCase)))
+            {
+                var arguments = String.Format("/nologo /usestderr /testcontainer:{0}", outputFileInfo.FullName);
+                var logPrefix = String.Format("Project: {0}, Output: {1}", Path.GetFileName(project.Name), outputFileInfo.Name);
+                var errorMessage = "MSTest failed: " + logPrefix;
+                try
+                {
+                    RunProcess(fileName, arguments, logPrefix, errorMessage);
+                }
+                catch (BuildDependencyReader.BuildDependencyResolver.Exceptions.ProcessEndedWithFailExitCodeException)
+                {
+                    if (false == ignoreFailure)
+                    {
+                        throw;
+                    }
+                    _logger.Warn("Ignoring failed tests in " + logPrefix);
+                }
+            }
+        }
+
+        protected static void MSBuild(string solutionFileName, string args = "")
+        {
+            // TODO: Remove hard-coded path to msbuild
+            var fileName = @"C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe";
+            var arguments = String.Format("/nologo /v:quiet \"{0}\" {1}", solutionFileName, args); ;
+            var logPrefix = Path.GetFileName(solutionFileName);
+            var errorMessage = "Build failed: " + solutionFileName;
+            RunProcess(fileName, arguments, logPrefix, errorMessage);
+        }
+
+        protected static void RunProcess(string fileName, string arguments, string logPrefix, string errorMessage)
+        {
+            var process = new Process();
+            process.StartInfo.CreateNoWindow = true;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.FileName = fileName;
+            process.StartInfo.Arguments = arguments;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.Start();
+
+            // Must read process outputs before calling WaitForExit to prevent deadlocks
+            LogWarnProcessOutputs(process, logPrefix);
+
+            process.WaitForExit();
+            if (0 != process.ExitCode)
+            {
+                _logger.Warn(errorMessage);
+                throw new BuildDependencyReader.BuildDependencyResolver.Exceptions.ProcessEndedWithFailExitCodeException(errorMessage);
+            }
+        }
+
+        protected static void LogWarnProcessOutputs(Process process, string messagePrefix)
+        {
+            var processStdOut = process.StandardOutput.ReadToEnd().Trim();
+            if (processStdOut.Any())
+            {
+                _logger.InfoFormat("{0}: stdout of '{1} {2}':\n\n{3}\n", messagePrefix, process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdOut));
+            }
+            var processStdErr = process.StandardError.ReadToEnd().Trim();
+            if (processStdErr.Any())
+            {
+                _logger.WarnFormat("{0}: stderr of '{1} {2}':\n\n{3}\n", messagePrefix, process.StartInfo.FileName, process.StartInfo.Arguments, StringExtensions.Tabify(processStdErr));
+            }
+        }
+
+        protected static void WarnAboutUncopiedAssemblies(Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, List<AssemblyReference> ignoredAssemblies, List<AssemblyReference> badHintPathAssemblies, List<AssemblyReference> missingProjects, List<Project> unbuiltProjects)
         {
             var messageBuilder = new StringBuilder();
             _logger.DebugFormat("Ignored dependencies: {0}", 
-                MessageForNonZeroStat(ignoredAssemblies.Count,
+                MessageForNonZeroStat(ignoredAssemblies,
                     String.Format("ignored assemblies ({0} patterns: {1})",
                         ignoreOnlyMatching ? "matched one or more of the" : "did not match any of the",
                         String.Join(", ", assemblyNamePatterns.Select(x => "'" + x.ToString() + "'")))));
-            messageBuilder.Append(MessageForNonZeroStat(badHintPathAssemblies.Count, "assemblies with missing or wrong HintPath"));
-            messageBuilder.Append(MessageForNonZeroStat(missingProjects.Count, "assemblies from unknown projects"));
-            messageBuilder.Append(MessageForNonZeroStat(unbuiltProjects.Count, "assemblies from projects that are not built (could not find outputs)"));
+            messageBuilder.Append(MessageForNonZeroStat(badHintPathAssemblies, "assemblies with missing or wrong HintPath"));
+            messageBuilder.Append(MessageForNonZeroStat(missingProjects, "assemblies from unknown projects"));
+            messageBuilder.Append(MessageForNonZeroStat(unbuiltProjects, "assemblies from projects that are not built (could not find outputs)"));
             if (0 < messageBuilder.Length)
             {
                 var message = "Dependencies not copied: (see verbose output for more details)\n" + messageBuilder.ToString();
@@ -195,11 +255,13 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
         }
 
-        private static string MessageForNonZeroStat(int value, string msg)
+        private static string MessageForNonZeroStat<T>(IEnumerable<T> values, string msg)
         {
-            return (0 == value )
+            var count = values.Count();
+            var firstItemSuffix = 1 < count ? ", ..." : "";
+            return (0 == count)
                  ? String.Empty 
-                 : String.Format("\t{0} {1}\n", value, msg);
+                 : String.Format("\t{0} {1} [{2}{3}]\n", count, msg, values.First(), firstItemSuffix);
         }
 
         protected static void WarnAboutRemainingIndirectReferences(IProjectFinder projectFinder, HashSet<string> originalAssemblyReferenceNames,
@@ -311,5 +373,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
         }
 
+        #endregion
     }
 }

@@ -83,6 +83,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
             return result;
         }
 
+        public bool ProjectHasMatchingSLNFile(Project project)
+        {
+            return this._mapProjectToSLN.ContainsKey(project);
+        }
 
         public FileInfo GetSLNFileForProject(Project project)
         {
@@ -90,7 +94,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             if (false == this._mapProjectToSLN.TryGetValue(project, out slnFileInfo))
             {
                 var errorMessage = "No .sln found for project: " + project;
-                _logger.Error(errorMessage);
+                _logger.Warn(errorMessage);
                 throw new ArgumentException(errorMessage, "project");
             }
             return slnFileInfo;
