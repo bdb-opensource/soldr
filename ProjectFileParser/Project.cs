@@ -60,8 +60,6 @@ namespace BuildDependencyReader.ProjectFileParser
             this.DefaultConfiguration = this.FindDefaultConfiguration(document);
             this.AssemblyReferences = GetAssemblyReferences(this.Path, projectDirectory, document).ToArray();
             this.ProjectReferences = GetProjectReferences(projectDirectory, document).ToArray();
-
-            this.ValidateDefaultConfiguration();
         }
 
         #endregion
@@ -207,11 +205,10 @@ namespace BuildDependencyReader.ProjectFileParser
 
         /// <summary>
         /// Checks that the project's default configuration is "useable" for the build tool. Throws an exception if not.
+        /// To be used before trying to copy build outputs.
         /// </summary>
         public void ValidateDefaultConfiguration()
         {
-            // TODO: Perhaps the validation that there IS a default config 
-            // should only be done when trying to access the build outputs?
             if (false == this.DefaultConfiguration.HasValue)
             {
                 var errorMessage = String.Format("Can't resolve build path from which to fetch project outputs because the project has no matching default configuration (Project = {0})",

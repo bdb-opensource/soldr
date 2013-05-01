@@ -46,7 +46,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             MSBuild(solutionFileName);
             if (runTests)
             {
-                _logger.InfoFormat("\tRunning tests is enabled - looking for tests to run...");
+                _logger.DebugFormat("\tRunning tests is enabled - looking for tests to run...");
                 RunAllUnitTests(projectFinder, solutionFileName, ignoreFailedTests);
             }
             _logger.InfoFormat("Done: {0} ('{1}')\n", Path.GetFileName(solutionFileName), solutionFileName);
@@ -170,10 +170,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
             var outputs = project.GetBuiltProjectOutputs().ToArray();
             if (false == outputs.Any())
             {
-                _logger.InfoFormat("Project {0} has no outputs, nothing to run MSTest on.", project.Name);
+                _logger.DebugFormat("Project {0} has no outputs, nothing to run MSTest on.", project.Name);
                 return;
             }
-            _logger.InfoFormat("Searching for unit test outputs in: [{0}]", String.Join(", ", outputs.Select(x => x.Name).ToArray()));
+            _logger.DebugFormat("Searching for unit test outputs in: [{0}]", String.Join(", ", outputs.Select(x => x.Name).ToArray()));
             foreach (var outputFileInfo in project.GetBuiltProjectOutputs().Where(x => x.Extension.Equals(".dll", StringComparison.InvariantCultureIgnoreCase)))
             {
                 var arguments = String.Format("/nologo /usestderr /testcontainer:{0}", outputFileInfo.FullName);
@@ -189,7 +189,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                     {
                         throw;
                     }
-                    _logger.Warn("Ignoring failed tests in " + logPrefix);
+                    _logger.Info("Ignoring failed tests in " + logPrefix);
                 }
             }
         }
@@ -243,14 +243,14 @@ namespace BuildDependencyReader.BuildDependencyResolver
         protected static void WarnAboutUncopiedAssemblies(Regex[] assemblyNamePatterns, bool ignoreOnlyMatching, List<AssemblyReference> ignoredAssemblies, List<AssemblyReference> badHintPathAssemblies, List<AssemblyReference> missingProjects, List<Project> unbuiltProjects)
         {
             var messageBuilder = new StringBuilder();
-            _logger.DebugFormat("Ignored dependencies: {0}", 
-                MessageForNonZeroStat(ignoredAssemblies,
+            _logger.DebugFormat("Ignored dependencies: {0}",
+                MessageForNonZeroStat(ignoredAssemblies.Select(x => x.Name),
                     String.Format("ignored assemblies ({0} patterns: {1})",
                         ignoreOnlyMatching ? "matched one or more of the" : "did not match any of the",
                         String.Join(", ", assemblyNamePatterns.Select(x => "'" + x.ToString() + "'")))));
-            messageBuilder.Append(MessageForNonZeroStat(badHintPathAssemblies, "assemblies with missing or wrong HintPath"));
-            messageBuilder.Append(MessageForNonZeroStat(missingProjects, "assemblies from unknown projects"));
-            messageBuilder.Append(MessageForNonZeroStat(unbuiltProjects, "assemblies from projects that are not built (could not find outputs)"));
+            messageBuilder.Append(MessageForNonZeroStat(badHintPathAssemblies.Select(x => x.Name), "assemblies with missing or wrong HintPath"));
+            messageBuilder.Append(MessageForNonZeroStat(missingProjects.Select(x => x.Name), "assemblies from unknown projects"));
+            messageBuilder.Append(MessageForNonZeroStat(unbuiltProjects.Select(x => x.Name), "assemblies from projects that are not built (could not find outputs)"));
             if (0 < messageBuilder.Length)
             {
                 var message = "Dependencies not copied: (see verbose output for more details)\n" + messageBuilder.ToString();
@@ -316,7 +316,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             }
             var buildingSolution = projectFinder.GetSLNFileForProject(buildingProject);
 
-            _logger.DebugFormat("Adding indirect references due to reference {0} built by project: '{1}'\n{2}",
+            _logger.InfoFormat("Adding indirect references due to reference {0} built by project: '{1}'\n{2}",
                 assemblyReference, buildingProject, StringExtensions.Tabify(indirectReferences.Select(x => x.ToString())));
             foreach (var indirectReference in indirectReferences)
             {
