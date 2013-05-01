@@ -315,9 +315,10 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 return;
             }
             var buildingSolution = projectFinder.GetSLNFileForProject(buildingProject);
-
-            _logger.InfoFormat("Adding indirect references due to reference {0} built by project: '{1}'\n{2}",
-                assemblyReference, buildingProject, StringExtensions.Tabify(indirectReferences.Select(x => x.ToString())));
+            // TODO: Print the name of the project that is missing these indirect references instead of letting the user guess.
+            _logger.InfoFormat("Adding indirect references listed below. The direct reference is to {0}.\n{1}\nThis probably means some project is referencing {0} but does not reference all of the listed indirect assemblies above.\nHere's a list of projects referencing {0}:\n{2}",
+                assemblyReference.Name, StringExtensions.Tabify(indirectReferences.Select(x => x.Name)),
+                StringExtensions.Tabify(ProjectsUsingAssemblyReference(projectFinder, assemblyReference)));
             foreach (var indirectReference in indirectReferences)
             {
                 var indirectReferenceBuildingProject = projectFinder.FindProjectForAssemblyReference(indirectReference).SingleOrDefault();
