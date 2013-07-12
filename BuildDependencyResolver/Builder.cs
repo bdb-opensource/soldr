@@ -197,7 +197,8 @@ namespace BuildDependencyReader.BuildDependencyResolver
         protected static void MSBuild(string solutionFileName, string args = "")
         {
             // TODO: Remove hard-coded path to msbuild
-            var fileName = @"C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe";
+            var winDir = System.Environment.GetEnvironmentVariable("WINDIR");
+            var fileName = Path.Combine(winDir, @"Microsoft.NET\Framework\v4.0.30319\MSBuild.exe");
             var arguments = String.Format("/nologo /v:quiet \"{0}\" {1}", solutionFileName, args); ;
             var logPrefix = Path.GetFileName(solutionFileName);
             var errorMessage = "Build failed: " + solutionFileName;
