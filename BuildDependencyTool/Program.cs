@@ -184,10 +184,64 @@ namespace BuildDependencyReader.PrintProjectDependencies
 
         protected static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
         {
+            Console.WriteLine(GenerateMSBuildProjFile(dependencyInfo));
+        }
+
+        protected static string GenerateMSBuildProjFile(BuildDependencyInfo dependencyInfo)
+        {
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">");
+            //  <Target Name="EntireOne">
+            //    <MSBuild Projects="Framework\EntireOne\EntireOne.sln">
+            //        <Output ItemName="EntireOne_Outputs" TaskParameter="TargetOutputs"/>
+            //    </MSBuild>
+            //  </Target>
+            //  <Target Name="EntireOne_Services" DependsOnTargets="EntireOne">
+            //    <!--<Exec Command="C:\source\bdb-tools\tools\BuildDependencyTool\BuildDependencyReader.BuildDependencyTool.exe -b . -m'EntireOne.*' -m'BDB.*' -m'Legend.*' -v -u Framework\EntireOne.Services\EntireOne.Services.sln"/>-->
+            //     <!--<Message Importance="High" Text="EntireOne_Outputs=@(EntireOne_Outputs)" />-->
+            //    <Copy SourceFiles="@(EntireOne_Outputs)" DestinationFolder="Framework\EntireOne.Services\Components\EntireOne"/>
+            //    <MSBuild Projects="Framework\EntireOne.Services\EntireOne.Services.sln" />
+            //  </Target>
+            //</Project>
             foreach (var solutionFileName in GetDependencySortedSolutionNames(dependencyInfo))
             {
-                Console.WriteLine(solutionFileName);
+                var targetName = SLNToTargetName(solutionFileName);
+                stringBuilder.AppendLine(Environment.NewLine + "\t<!-- " + solutionFileName + "-->");
+                var dependencyTargets = dependencyInfo.SolutionDependencyGraph
+                                  .Edges
+                                  .Where(x => x.Target == solutionFileName)
+                                  .Select(x => SLNToTargetName(x.Source));
+
+                var dependencyTargetsList = String.Join(";", dependencyTargets);
+                stringBuilder.AppendLine(String.Format(
+                    "\t<Target Name=\"{0}\" DependsOnTargets=\"{1}\">",
+                    targetName,
+                    dependencyTargetsList));
+                foreach (var dependencyTarget in dependencyTargets)
+                {
+                    stringBuilder.AppendLine(
+                        String.Format("\t\t<Copy SourceFiles=\"@({0}_Outputs)\" DestinationFolder=\"{1}\\Components\\{2}\"/>",
+                            dependencyTarget,
+                            Path.GetDirectoryName(solutionFileName),
+                            dependencyTarget.Replace("_", ".")
+                        ));
+                }
+
+                stringBuilder.AppendLine(String.Format("\t\t<MSBuild Projects=\"{0}\">", solutionFileName));
+                stringBuilder.AppendLine(String.Format("\t\t\t<Output ItemName=\"{0}_Outputs\" TaskParameter=\"TargetOutputs\"/>",
+                    targetName));
+                stringBuilder.AppendLine(String.Format("\t\t</MSBuild>"));
+
+                stringBuilder.AppendLine("\t</Target>");
+
             }
+            stringBuilder.AppendLine("</Project>");
+            return stringBuilder.ToString();
+        }
+
+        private static string SLNToTargetName(string solutionFileName)
+        {
+            return Path.GetFileNameWithoutExtension(solutionFileName).Replace(".", "_");
         }
 
         private static IEnumerable<string> GetDependencySortedSolutionNames(BuildDependencyInfo dependencyInfo)
