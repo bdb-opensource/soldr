@@ -4,17 +4,17 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using BuildDependencyReader.BuildDependencyResolver;
+using BuildDependencyReader.Common;
 using BuildDependencyReader.ProjectFileParser;
+using log4net;
+using log4net.Core;
+using log4net.Repository.Hierarchy;
+using Mono.Options;
 using QuickGraph;
 using QuickGraph.Algorithms;
 using QuickGraph.Graphviz;
-using Mono.Options;
-using log4net.Repository.Hierarchy;
-using log4net;
-using log4net.Core;
-using System.Text.RegularExpressions;
-using BuildDependencyReader.Common;
 
 namespace BuildDependencyReader.PrintProjectDependencies
 {
@@ -27,10 +27,10 @@ namespace BuildDependencyReader.PrintProjectDependencies
         {
             var tempFileName = System.IO.Path.GetTempFileName();
             File.AppendAllText(tempFileName, dot);
-            var processStartInfo = new ProcessStartInfo(@"D:\Program Files (x86)\Graphviz 2.28\bin\dot.exe", 
-                String.Format("-T{0} -o{1} {2}", 
-                              imageType.ToString().ToLowerInvariant(), 
-                              outputFileName, 
+            var processStartInfo = new ProcessStartInfo(@"D:\Program Files (x86)\Graphviz 2.28\bin\dot.exe",
+                String.Format("-T{0} -o{1} {2}",
+                              imageType.ToString().ToLowerInvariant(),
+                              outputFileName,
                               tempFileName));
             processStartInfo.UseShellExecute = false;
             processStartInfo.RedirectStandardError = true;
@@ -43,7 +43,6 @@ namespace BuildDependencyReader.PrintProjectDependencies
             return outputFileName;
         }
     }
-
 
     class OptionValues
     {
@@ -61,18 +60,22 @@ namespace BuildDependencyReader.PrintProjectDependencies
         public bool RunTests;
         public bool IgnoreFailedTests;
         public bool IncludeAllSLNsAsInputs;
+        public bool OutputMultipleMSBuildFiles;
+        public bool GenerateMSBuildFiles;
     }
 
     class Program
     {
         protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected static readonly Level[] _levels = { Level.Error, Level.Warn, Level.Info, Level.Debug };
+        private static string MSBUILD_OUTPUT_FILENAME = "build.proj";
+
         private static Level IncreaseLogLevel(Level level)
         {
             return _levels.FirstOrDefault(x => x.Value < level.Value) ?? Level.All;
         }
-
 
         static int Main(string[] args)
         {
@@ -140,6 +143,11 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 PrintSolutionBuildOrder(dependencyInfo);
             }
 
+            if (optionValues.GenerateMSBuildFiles)
+            {
+                GenerateMSBuildFiles(dependencyInfo, false == optionValues.OutputMultipleMSBuildFiles);
+            }
+
             if (optionValues.UpdateComponents)
             {
                 PerformUpdateComponents(projectFinder, dependencyInfo, optionValues);
@@ -166,7 +174,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 var hintPathPrefix = PathExtensions.GetFullPath(assemblyReference.HintPath.Trim())
                                                    .Substring(0, basePath.Length);
                 if (false == basePath.Equals(
-                        hintPathPrefix, 
+                        hintPathPrefix,
                         StringComparison.InvariantCultureIgnoreCase))
                 {
                     var errorMessage = String.Format(
@@ -182,61 +190,112 @@ namespace BuildDependencyReader.PrintProjectDependencies
             log4net.LogManager.GetRepository().Threshold = level;
         }
 
-        protected static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
+        protected static void GenerateMSBuildFiles(BuildDependencyInfo dependencyInfo, bool singleFile)
         {
-            Console.WriteLine(GenerateMSBuildProjFile(dependencyInfo));
+            GenerateMSBuildProjFiles(dependencyInfo, singleFile);
         }
 
-        protected static string GenerateMSBuildProjFile(BuildDependencyInfo dependencyInfo)
+        private static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
         {
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(@"<Project xmlns=""http://schemas.microsoft.com/developer/msbuild/2003"">");
-            //  <Target Name="EntireOne">
-            //    <MSBuild Projects="Framework\EntireOne\EntireOne.sln">
-            //        <Output ItemName="EntireOne_Outputs" TaskParameter="TargetOutputs"/>
-            //    </MSBuild>
-            //  </Target>
-            //  <Target Name="EntireOne_Services" DependsOnTargets="EntireOne">
-            //    <!--<Exec Command="C:\source\bdb-tools\tools\BuildDependencyTool\BuildDependencyReader.BuildDependencyTool.exe -b . -m'EntireOne.*' -m'BDB.*' -m'Legend.*' -v -u Framework\EntireOne.Services\EntireOne.Services.sln"/>-->
-            //     <!--<Message Importance="High" Text="EntireOne_Outputs=@(EntireOne_Outputs)" />-->
-            //    <Copy SourceFiles="@(EntireOne_Outputs)" DestinationFolder="Framework\EntireOne.Services\Components\EntireOne"/>
-            //    <MSBuild Projects="Framework\EntireOne.Services\EntireOne.Services.sln" />
-            //  </Target>
-            //</Project>
             foreach (var solutionFileName in GetDependencySortedSolutionNames(dependencyInfo))
             {
-                var targetName = SLNToTargetName(solutionFileName);
-                stringBuilder.AppendLine(Environment.NewLine + "\t<!-- " + solutionFileName + "-->");
-                var dependencyTargets = dependencyInfo.SolutionDependencyGraph
-                                  .Edges
-                                  .Where(x => x.Target == solutionFileName)
-                                  .Select(x => SLNToTargetName(x.Source));
-
-                var dependencyTargetsList = String.Join(";", dependencyTargets);
-                stringBuilder.AppendLine(String.Format(
-                    "\t<Target Name=\"{0}\" DependsOnTargets=\"{1}\">",
-                    targetName,
-                    dependencyTargetsList));
-                foreach (var dependencyTarget in dependencyTargets)
-                {
-                    stringBuilder.AppendLine(
-                        String.Format("\t\t<Copy SourceFiles=\"@({0}_Outputs)\" DestinationFolder=\"{1}\\Components\\{2}\"/>",
-                            dependencyTarget,
-                            Path.GetDirectoryName(solutionFileName),
-                            dependencyTarget.Replace("_", ".")
-                        ));
-                }
-
-                stringBuilder.AppendLine(String.Format("\t\t<MSBuild Projects=\"{0}\">", solutionFileName));
-                stringBuilder.AppendLine(String.Format("\t\t\t<Output ItemName=\"{0}_Outputs\" TaskParameter=\"TargetOutputs\"/>",
-                    targetName));
-                stringBuilder.AppendLine(String.Format("\t\t</MSBuild>"));
-
-                stringBuilder.AppendLine("\t</Target>");
-
+                Console.WriteLine(solutionFileName);
             }
-            stringBuilder.AppendLine("</Project>");
+        }
+
+        protected static void GenerateMSBuildProjFiles(BuildDependencyInfo dependencyInfo, bool singleFile)
+        {
+            var singleFileData = new StringBuilder();
+            AppendMSBuildProjectPrefix(singleFileData, new string[] { });
+            foreach (var solutionFileName in GetDependencySortedSolutionNames(dependencyInfo))
+            {
+                var targetString = GenerateMSBuildTarget(dependencyInfo, solutionFileName);
+                if (false == singleFile)
+                {
+                    var specificFileBuilder = new StringBuilder();
+                    AppendMSBuildProjectPrefix(specificFileBuilder, new string[] { SLNToTargetName(solutionFileName) });
+                    AppendMSBuildDependencyTargetImports(dependencyInfo, solutionFileName, specificFileBuilder);
+                    specificFileBuilder.AppendLine(targetString);
+                    AppendMSBuildProjectSuffix(specificFileBuilder);
+                    File.WriteAllText(TargetMSBuildOutputFileName(solutionFileName), specificFileBuilder.ToString());
+                }
+                else
+                {
+                    singleFileData.AppendLine(targetString);
+                }
+            }
+            if (singleFile)
+            {
+                AppendMSBuildProjectSuffix(singleFileData);
+                File.WriteAllText(MSBUILD_OUTPUT_FILENAME, singleFileData.ToString());
+            }
+        }
+
+        private static void AppendMSBuildDependencyTargetImports(BuildDependencyInfo dependencyInfo, string solutionFileName, StringBuilder specificFileBuilder)
+        {
+            foreach (var dependencySolutionFileName in GetSLNDependencies(dependencyInfo, solutionFileName))
+            {
+                specificFileBuilder.AppendLine(
+                    String.Format("\t<Import Project=\"{0}\"/>", TargetMSBuildOutputFileName(dependencySolutionFileName)));
+            }
+        }
+
+        private static string TargetMSBuildOutputFileName(string solutionFileName)
+        {
+            return Path.Combine(Path.GetDirectoryName(solutionFileName), MSBUILD_OUTPUT_FILENAME);
+        }
+
+        private static void AppendMSBuildProjectPrefix(StringBuilder specificFileBuilder, string[] defaultTargets)
+        {
+            specificFileBuilder.AppendLine(
+                String.Format("<Project  DefaultTargets=\"{0}\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">",
+                    String.Join(";", defaultTargets)
+                ));
+        }
+
+        private static void AppendMSBuildProjectSuffix(StringBuilder singleFileData)
+        {
+            singleFileData.AppendLine("</Project>");
+        }
+
+        private static string GenerateMSBuildTarget(BuildDependencyInfo dependencyInfo, string solutionFileName)
+        {
+            var stringBuilder = new StringBuilder();
+            var targetName = SLNToTargetName(solutionFileName);
+            stringBuilder.AppendLine(Environment.NewLine + "\t<!-- " + solutionFileName + "-->");
+            var dependencyTargets = GetSLNDependencies(dependencyInfo, solutionFileName)
+                              .Select(x => SLNToTargetName(x));
+
+            var dependencyTargetsList = String.Join(";", dependencyTargets);
+            stringBuilder.AppendLine(String.Format(
+                "\t<Target Name=\"{0}\" DependsOnTargets=\"{1}\">",
+                targetName,
+                dependencyTargetsList));
+            foreach (var dependencyTarget in dependencyTargets)
+            {
+                stringBuilder.AppendLine(
+                    String.Format("\t\t<Copy SourceFiles=\"@({0}_Outputs)\" DestinationFolder=\"{1}\\Components\\{2}\" SkipUnchangedFiles=\"True\"/>",
+                        dependencyTarget,
+                        Path.GetDirectoryName(solutionFileName),
+                        dependencyTarget.Replace("_", ".")
+                    ));
+            }
+
+            stringBuilder.AppendLine(String.Format("\t\t<MSBuild Projects=\"{0}\" ToolsVersion=\"4.0\">", solutionFileName));
+            stringBuilder.AppendLine(String.Format("\t\t\t<Output ItemName=\"{0}_Outputs\" TaskParameter=\"TargetOutputs\"/>",
+                targetName));
+            stringBuilder.AppendLine("\t\t</MSBuild>");
+
+            stringBuilder.AppendLine("\t</Target>");
             return stringBuilder.ToString();
+        }
+
+        private static IEnumerable<string> GetSLNDependencies(BuildDependencyInfo dependencyInfo, string solutionFileName)
+        {
+            return dependencyInfo.SolutionDependencyGraph
+                                          .Edges
+                                          .Where(x => x.Target == solutionFileName)
+                                          .Select(x => x.Source);
         }
 
         private static string SLNToTargetName(string solutionFileName)
@@ -300,8 +359,6 @@ namespace BuildDependencyReader.PrintProjectDependencies
             }
         }
 
-        
-
         protected static bool ParseOptions(string[] args, List<string> exlcudedSlns, List<string> inputFiles, OptionValues optionValues)
         {
             bool userRequestsHelp = false;
@@ -321,6 +378,13 @@ namespace BuildDependencyReader.PrintProjectDependencies
             options.Add("all-slns",
                         "Find all .sln files under base path and use them as inputs.",
                         x => optionValues.IncludeAllSLNsAsInputs = (null != x));
+            options.Add("o|output-proj",
+                        "Generate a single MSBuild (named " + MSBUILD_OUTPUT_FILENAME + @") that includes all inputs,
+with dependency information (can be used for building the inter-sln dependencies correctly using MSBuild)",
+                        x => optionValues.GenerateMSBuildFiles = (null != x));
+            options.Add("split-proj",
+                        "(requires -o) Generates the MSBuild project file as multiple files - generates a one per .sln (named " + MSBUILD_OUTPUT_FILENAME + ", in the .sln's directory)",
+                        x => optionValues.OutputMultipleMSBuildFiles = (null != x));
             options.Add("c|compile",
                         @"Full compile of the given inputs. Combine with -u to only build the dependencies (but not the direct input solutions).
 Includes (recursively on all dependencies, using the calculated dependency order):
@@ -341,8 +405,8 @@ Combine this with -c (--compile) to also compile whatever is neccesary for build
             options.Add("p|print-slns",
                         "Print the .sln files of all dependencies in the calculated dependency order",
                         x => optionValues.PrintSolutionBuildOrder = (null != x));
-            options.Add("x|exclude=", 
-                        "Exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)", 
+            options.Add("x|exclude=",
+                        "Exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)",
                         x => exlcudedSlns.Add(x));
             //options.Add("dependents",
             //            "Finds anything that depends on the projects/solutions and performs operations as if they were the inputs (builds, prints, updates components, etc. on the dependents)",
@@ -368,8 +432,8 @@ Combine this with -c (--compile) to also compile whatever is neccesary for build
             options.Add("ignore-failed-tests",
                         "When running tests, don't stop the build on failure of tests.",
                         x => optionValues.IgnoreFailedTests = (null != x));
-            options.Add("h|help", 
-                        "Show help", 
+            options.Add("h|help",
+                        "Show help",
                         x => userRequestsHelp = (null != x));
 
             string errorMessage = null;
