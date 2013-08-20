@@ -45,8 +45,40 @@ In a nutshell:
 * Windows
 * .NET 4.0
 * Visual Studio (2010? TBD which version) or Visual Studio Shell
+       
+
+### Building soldr
+
+Clone:
+
+    git clone https://github.com/bdb-opensource/soldr.git
+    
+Build (requires .NET 4.0 and Visual Studio to be installed):
+
+    cd soldr
+    build.cmd
+    
+or, open `Soldr.sln` in Visual Studio and build it.
+
+### Basic usage
+
+`-p` - Print the resolved build order:
+
+    soldr -b path/to/source --all-slns -p
+
+    
+`-g` - Generate a dependency graph (.svg format):
+
+    soldr -b path/to/source --all-slns -g
+
+### Help
+
+    soldr --help
+
+## -o option: Generating a global MSBuild file
 
 ### Assumed source code conventions 
+
 
 * Each .sln file is in it's own directory
 * Assemblies used by an .sln are under a directory called Components, arranged by the name of the source .sln
@@ -63,21 +95,7 @@ Example directory structure:
               /ProjectB (depends on ProjectA from SolutionA)
               /Components/SolutionA/ProjectA.dll
 
-              
-
-### Building soldr
-
-Clone:
-
-    git clone git@github.com:bdb-opensource/soldr.git
-    
-Build (requires .NET 4.0 and Visual Studio to be installed):
-
-    cd soldr
-    build.cmd
-    
-or, open `Soldr.sln` in Visual Studio and build it.
-
+       
 ### Basic usage
 
 Here's how to generate an MSBuild file that includes all inter-.sln dependencies.
@@ -85,8 +103,3 @@ Here's how to generate an MSBuild file that includes all inter-.sln dependencies
     cd path/to/my/source/root
     path/to/soldr.exe -b . --all-slns -o
     MSBuild.exe build.proj 
-
-### Help
-
-    soldr --help
-
