@@ -8,8 +8,8 @@
     <ProjectGuid>{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BuildDependencyReader.Common</RootNamespace>
-    <AssemblyName>BuildDependencyReader.Common</AssemblyName>
+    <RootNamespace>Cosln.Common</RootNamespace>
+    <AssemblyName>Cosln.Common</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>

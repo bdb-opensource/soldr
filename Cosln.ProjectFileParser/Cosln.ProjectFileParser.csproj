@@ -8,8 +8,8 @@
     <ProjectGuid>{EAEE0200-AB00-4CF2-B069-9FD2FB685944}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>BuildDependencyReader.ProjectFileParser</RootNamespace>
-    <AssemblyName>BuildDependencyReader.ProjectFileParser</AssemblyName>
+    <RootNamespace>Cosln.ProjectFileParser</RootNamespace>
+    <AssemblyName>Cosln.ProjectFileParser</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
