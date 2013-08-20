@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using BuildDependencyReader.ProjectFileParser;
+using Cosln.ProjectFileParser;
 using System.IO;
 using System.Text.RegularExpressions;
-using BuildDependencyReader.Common;
+using Cosln.Common;
 
-namespace BuildDependencyReader.BuildDependencyResolver
+namespace Cosln.Resolver
 {
     public class ProjectFinder : IProjectFinder
     {

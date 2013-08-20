@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using BuildDependencyReader.ProjectFileParser;
+using Cosln.ProjectFileParser;
 using QuickGraph;
 using QuickGraph.Algorithms;
-using BuildDependencyReader.Common;
+using Cosln.Common;
 
-namespace BuildDependencyReader.BuildDependencyResolver
+namespace Cosln.Resolver
 {
     public class BuildDependencyResolver
     {
@@ -30,7 +30,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// which in this way will return the projects in build order)
         /// </summary>
         /// <param name="projects"></param>
-        /// <param name="direction"></param>
         /// <returns></returns>
         public static AdjacencyGraph<Project, SEdge<Project>> ProjectDependencyGraph(IProjectFinder projectFinder, IEnumerable<Project> projects, bool reverse, int maxRecursionLevel)
         {
@@ -71,7 +70,6 @@ namespace BuildDependencyReader.BuildDependencyResolver
         /// <param name="inputFiles">Project (.csproj) and solution (.sln) files to start the dependency search from</param>
         /// <param name="_excludedSLNs">Solution (.sln) files that should be excluded from the final dependency graph - useful for temporarily ignoring cyclic dependencies. 
         /// Note that .sln files may appear in the final graph even if they are not given in the input files list, if something in the input depends on them.</param>
-        /// <param name="basePath">Base path to start search for dependency .sln and .csproj files (used mainly for resolving assembly references)</param>
         /// <param name="maxRecursionLevel">How deep to resolve dependencies of the given inputs. 0 means no dependency resolution is performed. -1 means infinity.</param>
         public static BuildDependencyInfo GetDependencyInfo(IProjectFinder projectFinder, IEnumerable<string> inputFiles, IEnumerable<string> _excludedSLNs, int maxRecursionLevel) //, bool findAllDependents)
         {

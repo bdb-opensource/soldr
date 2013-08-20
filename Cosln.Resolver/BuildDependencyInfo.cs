@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using QuickGraph;
-using BuildDependencyReader.ProjectFileParser;
+using Cosln.ProjectFileParser;
 
-namespace BuildDependencyReader.BuildDependencyResolver
+namespace Cosln.Resolver
 {
     public class BuildDependencyInfo
     {

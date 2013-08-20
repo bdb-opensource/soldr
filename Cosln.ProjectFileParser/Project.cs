@@ -5,9 +5,9 @@ using System.Xml.Linq;
 using System.Text;
 using System.IO;
 using System.Text.RegularExpressions;
-using BuildDependencyReader.Common;
+using Cosln.Common;
 
-namespace BuildDependencyReader.ProjectFileParser
+namespace Cosln.ProjectFileParser
 {
     public class Project
     {

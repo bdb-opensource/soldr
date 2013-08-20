@@ -5,9 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using BuildDependencyReader.BuildDependencyResolver;
-using BuildDependencyReader.Common;
-using BuildDependencyReader.ProjectFileParser;
+using Cosln.Resolver;
+using Cosln.Common;
+using Cosln.ProjectFileParser;
 using log4net;
 using log4net.Core;
 using log4net.Repository.Hierarchy;
@@ -16,7 +16,7 @@ using QuickGraph;
 using QuickGraph.Algorithms;
 using QuickGraph.Graphviz;
 
-namespace BuildDependencyReader.PrintProjectDependencies
+namespace Cosln.PrintProjectDependencies
 {
     class DotEngine : IDotEngine
     {
@@ -130,8 +130,7 @@ namespace BuildDependencyReader.PrintProjectDependencies
                 }
             }
 
-            var dependencyInfo = BuildDependencyResolver.BuildDependencyResolver
-                                                        .GetDependencyInfo(projectFinder, inputFiles, exlcudedSlns, optionValues.RecursionLevel); //, optionValues.Dependents);
+            var dependencyInfo = Cosln.Resolver.BuildDependencyResolver.GetDependencyInfo(projectFinder, inputFiles, exlcudedSlns, optionValues.RecursionLevel); //, optionValues.Dependents);
 
             if (optionValues.GenerateGraphviz)
             {

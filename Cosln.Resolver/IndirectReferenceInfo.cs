@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using BuildDependencyReader.ProjectFileParser;
+using Cosln.ProjectFileParser;
 
-namespace BuildDependencyReader.BuildDependencyResolver
+namespace Cosln.Resolver
 {
     public struct IndirectReferenceInfo
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Runtime.Serialization;
 
-namespace BuildDependencyReader.ProjectFileParser
+namespace Cosln.ProjectFileParser
 {
     [Serializable]
     public class AssemblyReferenceHintPathDoesNotExistException : Exception

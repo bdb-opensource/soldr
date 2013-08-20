@@ -4,12 +4,12 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using BuildDependencyReader.Common;
-using BuildDependencyReader.ProjectFileParser;
+using Cosln.Common;
+using Cosln.ProjectFileParser;
 using Mono.Cecil;
 using System.IO;
 
-namespace BuildDependencyReader.BuildDependencyResolver
+namespace Cosln.Resolver
 {
     public class Builder
     {
@@ -183,7 +183,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
                 {
                     RunProcess(fileName, arguments, logPrefix, errorMessage);
                 }
-                catch (BuildDependencyReader.BuildDependencyResolver.Exceptions.ProcessEndedWithFailExitCodeException)
+                catch (Cosln.Resolver.Exceptions.ProcessEndedWithFailExitCodeException)
                 {
                     if (false == ignoreFailure)
                     {
@@ -223,7 +223,7 @@ namespace BuildDependencyReader.BuildDependencyResolver
             if (0 != process.ExitCode)
             {
                 _logger.Warn(errorMessage);
-                throw new BuildDependencyReader.BuildDependencyResolver.Exceptions.ProcessEndedWithFailExitCodeException(errorMessage);
+                throw new Cosln.Resolver.Exceptions.ProcessEndedWithFailExitCodeException(errorMessage);
             }
         }
 

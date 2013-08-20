@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using BuildDependencyReader.ProjectFileParser;
+using Cosln.ProjectFileParser;
 using System.IO;
-namespace BuildDependencyReader.BuildDependencyResolver
+namespace Cosln.Resolver
 {
     public interface IProjectFinder
     {

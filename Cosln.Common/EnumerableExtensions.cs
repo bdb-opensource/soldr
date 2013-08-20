@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Linq.Expressions;
 
-namespace BuildDependencyReader.Common
+namespace Cosln.Common
 {
     public static class EnumerableExtensions
     {
