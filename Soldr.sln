@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{69857BE2-8610-4466-8409-55989C00AF66}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+		.nuget\NuGet.targets = .nuget\NuGet.targets
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Soldr.CLI", "Soldr.CLI\Soldr.CLI.csproj", "{2A032862-70C2-4AE1-8AAB-6D38F17876F7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Soldr.Common", "Soldr.Common\Soldr.Common.csproj", "{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Soldr.ProjectFileParser", "Soldr.ProjectFileParser\Soldr.ProjectFileParser.csproj", "{EAEE0200-AB00-4CF2-B069-9FD2FB685944}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Soldr.Resolver", "Soldr.Resolver\Soldr.Resolver.csproj", "{6F088EA1-CD79-4A45-AD8B-9B4A1313034D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2A032862-70C2-4AE1-8AAB-6D38F17876F7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A032862-70C2-4AE1-8AAB-6D38F17876F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A032862-70C2-4AE1-8AAB-6D38F17876F7}.Debug|x86.ActiveCfg = Debug|x86
+		{2A032862-70C2-4AE1-8AAB-6D38F17876F7}.Debug|x86.Build.0 = Debug|x86
+		{2A032862-70C2-4AE1-8AAB-6D38F17876F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A032862-70C2-4AE1-8AAB-6D38F17876F7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A032862-70C2-4AE1-8AAB-6D38F17876F7}.Release|x86.ActiveCfg = Release|x86
+		{2A032862-70C2-4AE1-8AAB-6D38F17876F7}.Release|x86.Build.0 = Release|x86
+		{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AAAD0EAE-BCC8-4E26-A359-EA7542DECB0A}.Release|x86.ActiveCfg = Release|Any CPU
+		{EAEE0200-AB00-4CF2-B069-9FD2FB685944}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EAEE0200-AB00-4CF2-B069-9FD2FB685944}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EAEE0200-AB00-4CF2-B069-9FD2FB685944}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EAEE0200-AB00-4CF2-B069-9FD2FB685944}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EAEE0200-AB00-4CF2-B069-9FD2FB685944}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EAEE0200-AB00-4CF2-B069-9FD2FB685944}.Release|x86.ActiveCfg = Release|Any CPU
+		{6F088EA1-CD79-4A45-AD8B-9B4A1313034D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F088EA1-CD79-4A45-AD8B-9B4A1313034D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F088EA1-CD79-4A45-AD8B-9B4A1313034D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6F088EA1-CD79-4A45-AD8B-9B4A1313034D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F088EA1-CD79-4A45-AD8B-9B4A1313034D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F088EA1-CD79-4A45-AD8B-9B4A1313034D}.Release|x86.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

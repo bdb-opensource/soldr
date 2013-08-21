@@ -1,10 +1,10 @@
-# cosln
+# soldr
 
 *For people who use Visual Studio on a large codebase.*
 
-**cosln** is a tool for working with many inter-dependent .sln files, making it easy to build &amp; manage big code bases based on Visual Studio.
+**soldr** is a tool for working with many inter-dependent .sln files, making it easy to build &amp; manage big code bases based on Visual Studio.
 
-**cosln** can build your entire codebase in a single command, without having to manage manually a set of complex MSBuild files.
+**soldr** can build your entire codebase in a single command, without having to manage manually a set of complex MSBuild files.
 
 
 ## Why?
@@ -15,7 +15,7 @@ Our options for building this monster are:
 
 1. Ugly: Create a single, huge, **messy** .sln that contains all our .csproj projects, and specify all dependencies as project dependencies.
 2. Manually: build each .sln, copy files over to the next .sln and build it, repeating the process until all dependencies are built.
-3. Cosln: Use an automatic tool to build (or generate an MSBuild file) correctly and quickly.
+3. Soldr: Use an automatic tool to build (or generate an MSBuild file) correctly and quickly.
 
 
 ## Features
@@ -31,10 +31,10 @@ Our options for building this monster are:
 
 In a nutshell:
 
-1. cosln scans your source directory for .sln and .csproj files.
-2. Then, cosln deduces dependencies across projects from separate solutions by looking at project and assembly references.
-3. Using the cool QuickGraph nuget package, cosln builds a graph of dependencies and sorts it to find the correct build order.
-4. Finally, cosln can generate an MSBuild file for you to build any .sln or even your entire codebase with a single MSBuild command.
+1. soldr scans your source directory for .sln and .csproj files.
+2. Then, soldr deduces dependencies across projects from separate solutions by looking at project and assembly references.
+3. Using the cool QuickGraph nuget package, soldr builds a graph of dependencies and sorts it to find the correct build order.
+4. Finally, soldr can generate an MSBuild file for you to build any .sln or even your entire codebase with a single MSBuild command.
 
 
 
@@ -65,28 +65,28 @@ Example directory structure:
 
               
 
-### Building cosln
+### Building soldr
 
 Clone:
 
-    git clone git@github.com:bdb-opensource/cosln.git
+    git clone git@github.com:bdb-opensource/soldr.git
     
 Build (requires .NET 4.0 and Visual Studio to be installed):
 
-    cd cosln
+    cd soldr
     build.cmd
     
-or, open `Cosln.sln` in Visual Studio and build it.
+or, open `Soldr.sln` in Visual Studio and build it.
 
 ### Basic usage
 
 Here's how to generate an MSBuild file that includes all inter-.sln dependencies.
 
     cd path/to/my/source/root
-    path/to/cosln.exe -b . --all-slns -o
+    path/to/soldr.exe -b . --all-slns -o
     MSBuild.exe build.proj 
 
 ### Help
 
-    cosln --help
+    soldr --help
 
