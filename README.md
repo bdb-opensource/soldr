@@ -15,7 +15,8 @@ Our options for building this monster are:
 
 1. Ugly: Create a single, huge, **messy** .sln that contains all our .csproj projects, and specify all dependencies as project dependencies.
 2. Manually: build each .sln, copy files over to the next .sln and build it, repeating the process until all dependencies are built.
-3. Soldr: Use an automatic tool to build (or generate an MSBuild file) correctly and quickly.
+3. Duplication: Use manually maintained MSBuild files to reflect the dependencies between projects and solutions, forcing Visual Studio users to live in "two worlds" - the UI managed .sln/.csproj and the manually managed MSBuild file.
+4. **Soldr:** Use an automatic tool to build (or generate an MSBuild file) correctly and quickly.
 
 
 ## Features
