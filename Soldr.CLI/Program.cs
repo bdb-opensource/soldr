@@ -63,6 +63,7 @@ namespace Soldr.PrintProjectDependencies
         public bool OutputMultipleMSBuildFiles;
         public bool GenerateMSBuildFiles;
         public bool GenerateNUSpecFiles;
+        public bool PrintProjectBuildOrder;
     }
 
     class Program
@@ -143,6 +144,11 @@ namespace Soldr.PrintProjectDependencies
                 PrintSolutionBuildOrder(dependencyInfo);
             }
 
+            if (optionValues.PrintProjectBuildOrder)
+            {
+                PrintProjectBuildOrder(dependencyInfo);
+            }
+
             if (optionValues.GenerateMSBuildFiles)
             {
                 GenerateMSBuildFiles(dependencyInfo, false == optionValues.OutputMultipleMSBuildFiles);
@@ -162,6 +168,14 @@ namespace Soldr.PrintProjectDependencies
             {
                 PerformBuild(projectFinder, dependencyInfo, optionValues);
                 Console.Error.WriteLine("Build complete.");
+            }
+        }
+
+        private static void PrintProjectBuildOrder(BuildDependencyInfo dependencyInfo)
+        {
+            foreach (var project in dependencyInfo.FullProjectDependencyGraph.TopologicalSort())
+            {
+                Console.WriteLine(project.Path);
             }
         }
 
@@ -221,20 +235,22 @@ namespace Soldr.PrintProjectDependencies
                         //edge.Target.ver
                         );
                 }
-                var data = String.Format(@"
-<?xml version=""1.0""?>
+                var data = String.Format(@"<?xml version=""1.0""?>
 <package >
   <metadata>
     <id>{0}</id>
     <version>$version$</version>
-    <title>$title$</title>
+    <title>{0}</title>
+    <authors>Unknown</authors>
+    <description>Built from {1}</description>
     <dependencies>
-{1}
+{2}
     </dependencies>
   </metadata>
 </package>
 ",
                     project.Name,
+                    project.Path,
                     dependenciesBuilder.ToString());
                 File.WriteAllText(NUSpecFileName(project), data);
             }
@@ -453,6 +469,9 @@ Combine this with -c (--compile) to also compile whatever is neccesary for build
             options.Add("p|print-slns",
                         "Print the .sln files of all dependencies in the calculated dependency order",
                         x => optionValues.PrintSolutionBuildOrder = (null != x));
+            options.Add("print-csprojs",
+                        "Print the .csprojs files of all dependencies in the calculated dependency order",
+                        x => optionValues.PrintProjectBuildOrder = (null != x));
             options.Add("x|exclude=",
                         "Exclude this .sln when resolving dependency order (useful when temporarily ignoring cyclic dependencies)",
                         x => exlcudedSlns.Add(x));
