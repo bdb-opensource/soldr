@@ -62,6 +62,7 @@ namespace Soldr.PrintProjectDependencies
         public bool IncludeAllSLNsAsInputs;
         public bool OutputMultipleMSBuildFiles;
         public bool GenerateMSBuildFiles;
+        public bool GenerateNUSpecFiles;
     }
 
     class Program
@@ -147,6 +148,11 @@ namespace Soldr.PrintProjectDependencies
                 GenerateMSBuildFiles(dependencyInfo, false == optionValues.OutputMultipleMSBuildFiles);
             }
 
+            if (optionValues.GenerateNUSpecFiles)
+            {
+                GenerateNUSpecFiles(dependencyInfo);
+            }
+
             if (optionValues.UpdateComponents)
             {
                 PerformUpdateComponents(projectFinder, dependencyInfo, optionValues);
@@ -202,11 +208,44 @@ namespace Soldr.PrintProjectDependencies
             }
         }
 
+        protected static void GenerateNUSpecFiles(BuildDependencyInfo dependencyInfo)
+        {
+            foreach (var project in dependencyInfo.FullProjectDependencyGraph.Vertices)
+            {
+                StringBuilder dependenciesBuilder = new StringBuilder();
+                var edges = dependencyInfo.FullProjectDependencyGraph.Edges.Where(x => x.Target == project);
+                foreach (var edge in edges)
+                {
+                    dependenciesBuilder.AppendFormat("        <dependency id=\"{0}\" version=\"\" />\n",
+                        edge.Source.Name
+                        //edge.Target.ver
+                        );
+                }
+                var data = String.Format(@"
+<?xml version=""1.0""?>
+<package >
+  <metadata>
+    <id>{0}</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <dependencies>
+{1}
+    </dependencies>
+  </metadata>
+</package>
+",
+                    project.Name,
+                    dependenciesBuilder.ToString());
+                File.WriteAllText(NUSpecFileName(project), data);
+            }
+        }
+
         protected static void GenerateMSBuildProjFiles(BuildDependencyInfo dependencyInfo, bool singleFile)
         {
             var singleFileData = new StringBuilder();
             AppendMSBuildProjectPrefix(singleFileData, new string[] { });
-            foreach (var solutionFileName in GetDependencySortedSolutionNames(dependencyInfo))
+            var solutionFileNames = GetDependencySortedSolutionNames(dependencyInfo);
+            foreach (var solutionFileName in solutionFileNames)
             {
                 var targetString = GenerateMSBuildTarget(dependencyInfo, solutionFileName);
                 if (false == singleFile)
@@ -225,6 +264,8 @@ namespace Soldr.PrintProjectDependencies
             }
             if (singleFile)
             {
+                var allTargets = String.Join(";", solutionFileNames.Select(SLNToTargetName));
+                singleFileData.AppendLine("<Target Name=\"All\" DependsOnTargets=\"" + allTargets + "\"></Target>");
                 AppendMSBuildProjectSuffix(singleFileData);
                 File.WriteAllText(MSBUILD_OUTPUT_FILENAME, singleFileData.ToString());
             }
@@ -242,6 +283,11 @@ namespace Soldr.PrintProjectDependencies
         private static string TargetMSBuildOutputFileName(string solutionFileName)
         {
             return Path.Combine(Path.GetDirectoryName(solutionFileName), MSBUILD_OUTPUT_FILENAME);
+        }
+
+        private static string NUSpecFileName(Project project)
+        {
+            return Path.Combine(Path.GetDirectoryName(project.Path), Path.GetFileNameWithoutExtension(project.Path) + ".nuspec");
         }
 
         private static void AppendMSBuildProjectPrefix(StringBuilder specificFileBuilder, string[] defaultTargets)
@@ -384,6 +430,9 @@ with dependency information (can be used for building the inter-sln dependencies
             options.Add("split-proj",
                         "(requires -o) Generates the MSBuild project file as multiple files - generates a one per .sln (named " + MSBUILD_OUTPUT_FILENAME + ", in the .sln's directory)",
                         x => optionValues.OutputMultipleMSBuildFiles = (null != x));
+            options.Add("nuspec",
+                        "Generate .nuspec files for nuget packaging, one next to each .csproj file",
+                        x => optionValues.GenerateNUSpecFiles = (null != x));
             options.Add("c|compile",
                         @"Full compile of the given inputs. Combine with -u to only build the dependencies (but not the direct input solutions).
 Includes (recursively on all dependencies, using the calculated dependency order):
