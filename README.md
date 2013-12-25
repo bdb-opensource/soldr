@@ -6,7 +6,6 @@
 
 **soldr** can build your entire codebase in a single command, without having to manage manually a set of complex MSBuild files.
 
-
 ## Why?
 
 We have a large codebase, where each product (or big sub-product) lives in a separate .sln. Since we like to reuse code, some projects in one .sln can depend and use code from another project in another .sln.
@@ -16,15 +15,23 @@ Our options for building this monster are:
 1. Ugly: Create a single, huge, **messy** .sln that contains all our .csproj projects, and specify all dependencies as project dependencies.
 2. Manually: build each .sln, copy files over to the next .sln and build it, repeating the process until all dependencies are built.
 3. Duplication: Use manually maintained MSBuild files to reflect the dependencies between projects and solutions, forcing Visual Studio users to live in "two worlds" - the UI managed .sln/.csproj and the manually managed MSBuild file.
-4. **Soldr:** Use an automatic tool to build (or generate an MSBuild file) correctly and quickly.
+4. **Soldr:** Use an automatic tool to build (or generate `.nuspec` or MSBuild files) correctly and quickly.
 
 
 ## Features
 
 * Generate an MSBuild file for building many .sln's correctly according to their dependencies
-* Create a visual graph showing the dependencies between projects or between solutions
+* Generate [.nuspec files](http://docs.nuget.org/docs/reference/nuspec-reference) for nuget that include calculated dependencies
 * Verify correctnes of .csproj files and assembly references, including things not checked by Visual Studio or MSBuild
+* Create a visual graph showing the dependencies between projects or between solutions
 
+### Example workflows with soldr
+
+Although you can use soldr in a variety of ways, there are three typical workflows when using soldr to manage a multi-.sln codebase:
+
+1. Directly build the code (soldr will figure out what depends on who, build order, copying outputs into your "components" directories, etc.)
+2. Generate an MSBuild file to do the same (where you can later build whichever target you want, the dependencies will be taken into account by MSBuild).
+3. Generate `.nuspec` files and manage your dependencies using nuget.
 
 
 
