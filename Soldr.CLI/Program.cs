@@ -64,6 +64,7 @@ namespace Soldr.PrintProjectDependencies
         public bool GenerateMSBuildFiles;
         public bool GenerateNUSpecFiles;
         public bool PrintProjectBuildOrder;
+        public bool NUSpecWithoutDeps;
     }
 
     class Program
@@ -156,7 +157,7 @@ namespace Soldr.PrintProjectDependencies
 
             if (optionValues.GenerateNUSpecFiles)
             {
-                GenerateNUSpecFiles(dependencyInfo);
+                GenerateNUSpecFiles(dependencyInfo, optionValues);
             }
 
             if (optionValues.UpdateComponents)
@@ -214,7 +215,7 @@ namespace Soldr.PrintProjectDependencies
             GenerateMSBuildProjFiles(dependencyInfo, singleFile);
         }
 
-        private static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
+        protected static void PrintSolutionBuildOrder(BuildDependencyInfo dependencyInfo)
         {
             foreach (var solutionFileName in GetDependencySortedSolutionNames(dependencyInfo))
             {
@@ -222,18 +223,21 @@ namespace Soldr.PrintProjectDependencies
             }
         }
 
-        protected static void GenerateNUSpecFiles(BuildDependencyInfo dependencyInfo)
+        protected static void GenerateNUSpecFiles(BuildDependencyInfo dependencyInfo, OptionValues optionValues)
         {
             foreach (var project in dependencyInfo.FullProjectDependencyGraph.Vertices)
             {
                 StringBuilder dependenciesBuilder = new StringBuilder();
-                var edges = dependencyInfo.FullProjectDependencyGraph.Edges.Where(x => x.Target == project);
-                foreach (var edge in edges)
+                if (false == optionValues.NUSpecWithoutDeps)
                 {
-                    dependenciesBuilder.AppendFormat("        <dependency id=\"{0}\" version=\"\" />\n",
-                        edge.Source.Name
-                        //edge.Target.ver
-                        );
+                    var edges = dependencyInfo.FullProjectDependencyGraph.Edges.Where(x => x.Target == project);
+                    foreach (var edge in edges)
+                    {
+                        dependenciesBuilder.AppendFormat("        <dependency id=\"{0}\" version=\"\" />\n",
+                            edge.Source.Name
+                            //edge.Target.ver
+                            );
+                    }
                 }
                 var data = String.Format(@"<?xml version=""1.0""?>
 <package >
@@ -246,6 +250,7 @@ namespace Soldr.PrintProjectDependencies
     <dependencies>
 {2}
     </dependencies>
+   
   </metadata>
 </package>
 ",
@@ -449,6 +454,9 @@ with dependency information (can be used for building the inter-sln dependencies
             options.Add("nuspec",
                         "Generate .nuspec files for nuget packaging, one next to each .csproj file",
                         x => optionValues.GenerateNUSpecFiles = (null != x));
+            options.Add("nuspec-no-deps",
+                        "(requires --nuspec) When generating .nuspec files, don't include dependencies explicitly - for use with nuget's option -IncludeReferencedProjects",
+                        x => optionValues.NUSpecWithoutDeps = (null != x));
             options.Add("c|compile",
                         @"Full compile of the given inputs. Combine with -u to only build the dependencies (but not the direct input solutions).
 Includes (recursively on all dependencies, using the calculated dependency order):
