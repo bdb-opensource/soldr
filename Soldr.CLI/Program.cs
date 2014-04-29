@@ -5,20 +5,18 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Soldr.Resolver;
-using Soldr.Common;
-using Soldr.ProjectFileParser;
-using log4net;
 using log4net.Core;
-using log4net.Repository.Hierarchy;
 using Mono.Options;
 using QuickGraph;
 using QuickGraph.Algorithms;
 using QuickGraph.Graphviz;
+using Soldr.Common;
+using Soldr.ProjectFileParser;
+using Soldr.Resolver;
 
 namespace Soldr.PrintProjectDependencies
 {
-    class DotEngine : IDotEngine
+    internal class DotEngine : IDotEngine
     {
         protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -44,7 +42,7 @@ namespace Soldr.PrintProjectDependencies
         }
     }
 
-    class OptionValues
+    internal class OptionValues
     {
         public string BasePath;
         public bool GenerateGraphviz;
@@ -65,9 +63,10 @@ namespace Soldr.PrintProjectDependencies
         public bool GenerateNUSpecFiles;
         public bool PrintProjectBuildOrder;
         public bool NUSpecWithoutDeps;
+        public bool GenerateNugetPackagesConfig;
     }
 
-    class Program
+    internal class Program
     {
         protected static readonly log4net.ILog _logger = log4net.LogManager.GetLogger(
             System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -80,7 +79,7 @@ namespace Soldr.PrintProjectDependencies
             return _levels.FirstOrDefault(x => x.Value < level.Value) ?? Level.All;
         }
 
-        static int Main(string[] args)
+        private static int Main(string[] args)
         {
             log4net.Config.XmlConfigurator.Configure();
 
@@ -158,6 +157,11 @@ namespace Soldr.PrintProjectDependencies
             if (optionValues.GenerateNUSpecFiles)
             {
                 GenerateNUSpecFiles(dependencyInfo, optionValues);
+            }
+
+            if (optionValues.GenerateNugetPackagesConfig)
+            {
+                GenerateNugetPackagesConfig(dependencyInfo, optionValues);
             }
 
             if (optionValues.UpdateComponents)
@@ -250,7 +254,7 @@ namespace Soldr.PrintProjectDependencies
     <dependencies>
 {2}
     </dependencies>
-   
+
   </metadata>
 </package>
 ",
@@ -258,6 +262,59 @@ namespace Soldr.PrintProjectDependencies
                     project.Path,
                     dependenciesBuilder.ToString());
                 File.WriteAllText(NUSpecFileName(project), data);
+            }
+        }
+
+        protected static void GenerateNugetPackagesConfig(BuildDependencyInfo dependencyInfo, OptionValues optionValues)
+        {
+            var versions = new Dictionary<string, string>();
+            foreach (var project in dependencyInfo.FullProjectDependencyGraph.Vertices)
+            {
+                StringBuilder dependenciesBuilder = new StringBuilder();
+                var edges = dependencyInfo.FullProjectDependencyGraph.Edges.Where(x => x.Target == project);
+                foreach (var edge in edges)
+                {
+                    string version;
+                    if (project.ProjectReferences.Contains(edge.Source))
+                    {
+                        continue;
+                    }
+                    var dependencyName = edge.Source.Name;
+                    if (false == versions.TryGetValue(dependencyName, out version)) {
+                        var processStartInfo = new ProcessStartInfo("nuget.exe", "list " + dependencyName);
+                        processStartInfo.UseShellExecute = false;
+                        processStartInfo.RedirectStandardOutput = true;
+                        processStartInfo.WorkingDirectory = System.Environment.CurrentDirectory;
+                        var process = Process.Start(processStartInfo);
+                        while (true) {
+                            var line = process.StandardOutput.ReadLine();
+                            if (null == line)
+                            {
+                                version = "unknown";
+                                break;
+                            } 
+                            var parts = line.Split(' ');
+                            if (parts[0].Equals(dependencyName, StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                version = parts[1];
+                                break;
+                            }
+                        }
+                        _logger.DebugFormat("{0} = {1}", dependencyName, version);
+                        versions[dependencyName] = version;
+                    }
+                    dependenciesBuilder.AppendFormat("    <package id=\"{0}\" version=\"{1}\" />\n",
+                        dependencyName,
+                        version
+                        );
+                }
+                var data = String.Format(@"<?xml version=""1.0"" encoding=""utf-8""?>
+<packages>
+{0}
+</packages>
+",
+                dependenciesBuilder.ToString());
+                File.WriteAllText(PackagesConfigFileName(project), data);
             }
         }
 
@@ -311,6 +368,11 @@ namespace Soldr.PrintProjectDependencies
             return Path.Combine(Path.GetDirectoryName(project.Path), Path.GetFileNameWithoutExtension(project.Path) + ".nuspec");
         }
 
+        private static string PackagesConfigFileName(Project project)
+        {
+            return Path.Combine(Path.GetDirectoryName(project.Path), "packages.config");
+        }
+        
         private static void AppendMSBuildProjectPrefix(StringBuilder specificFileBuilder, string[] defaultTargets)
         {
             specificFileBuilder.AppendLine(
@@ -457,6 +519,9 @@ with dependency information (can be used for building the inter-sln dependencies
             options.Add("nuspec-no-deps",
                         "(requires --nuspec) When generating .nuspec files, don't include dependencies explicitly - for use with nuget's option -IncludeReferencedProjects",
                         x => optionValues.NUSpecWithoutDeps = (null != x));
+            options.Add("packages-config",
+                        "Generate a nuget packages.config file, one next to each .csproj file",
+                        x => optionValues.GenerateNugetPackagesConfig = (null != x));
             options.Add("c|compile",
                         @"Full compile of the given inputs. Combine with -u to only build the dependencies (but not the direct input solutions).
 Includes (recursively on all dependencies, using the calculated dependency order):
@@ -559,7 +624,7 @@ Combine this with -c (--compile) to also compile whatever is neccesary for build
             options.WriteOptionDescriptions(Console.Error);
         }
 
-        static void graphviz_FormatVertex(object sender, FormatVertexEventArgs<String> e)
+        private static void graphviz_FormatVertex(object sender, FormatVertexEventArgs<String> e)
         {
             e.VertexFormatter.Label = e.Vertex.Replace("\\", "\\\\");
         }
