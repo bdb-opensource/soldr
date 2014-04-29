@@ -261,7 +261,10 @@ namespace Soldr.PrintProjectDependencies
                     project.Name,
                     project.Path,
                     dependenciesBuilder.ToString());
-                File.WriteAllText(NUSpecFileName(project), data);
+
+                var fileName = NUSpecFileName(project);
+                _logger.InfoFormat("Generating file: {0} for project {1}", fileName, project.Name);
+                File.WriteAllText(fileName, data);
             }
         }
 
@@ -314,7 +317,9 @@ namespace Soldr.PrintProjectDependencies
 </packages>
 ",
                 dependenciesBuilder.ToString());
-                File.WriteAllText(PackagesConfigFileName(project), data);
+                var fileName = PackagesConfigFileName(project);
+                _logger.InfoFormat("Generating file: {0} for project {1}", fileName, project.Name);
+                File.WriteAllText(fileName, data);
             }
         }
 
