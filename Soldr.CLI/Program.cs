@@ -518,7 +518,7 @@ with dependency information (can be used for building the inter-sln dependencies
             options.Add("split-proj",
                         "(requires -o) Generates the MSBuild project file as multiple files - generates a one per .sln (named " + MSBUILD_OUTPUT_FILENAME + ", in the .sln's directory)",
                         x => optionValues.OutputMultipleMSBuildFiles = (null != x));
-            options.Add("nuspec",
+            options.Add("n|nuspec",
                         "Generate .nuspec files for nuget packaging, one next to each .csproj file",
                         x => optionValues.GenerateNUSpecFiles = (null != x));
             options.Add("nuspec-no-deps",
@@ -624,8 +624,15 @@ Combine this with -c (--compile) to also compile whatever is neccesary for build
 
         protected static void ShowHelp(string message, OptionSet options)
         {
-            Console.Error.WriteLine(Process.GetCurrentProcess().ProcessName + ": " + message);
-            Console.Error.WriteLine();
+            var processName = Process.GetCurrentProcess().ProcessName;
+            Console.Error.WriteLine(processName + ": " + message);
+            Console.Error.WriteLine(String.Format(@"soldr - The .sln dependency resolver.
+
+Usage: {0} [options] [sln/csproj file names...] 
+
+Options:
+",
+                processName));
             options.WriteOptionDescriptions(Console.Error);
         }
 
